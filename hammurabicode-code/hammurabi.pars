@@ -1,0 +1,161 @@
+#
+# Basic hammurabi parameter file.
+#
+
+#################################################################################
+#  Integrator parameters
+#################################################################################
+
+# The following control the resolution of the integration.  Use
+# total_shell_numb to control the number of shells used, i.e. the
+# number of times the resolution of pixels on the sky is increased.
+# For total_shell_numb=1, the observation shell is the only shell.
+# For total_shell_numb=3 and obs_shell_index_numb=2, then there are
+# three shells.  The highest resolution shell is then averaged into
+# the observed shell.  The parameter obs_NSIDE gives the resolution of
+# the observation shell, and the resolutions of all the other shells
+# are simply a factor of two more or less.
+
+obs_shell_index_numb=1
+total_shell_numb=1
+obs_NSIDE=16
+
+# The *total* number of radial bins to divide each sky pixel into to
+# create vec_size_R 3D cells along the LOS.
+vec_size_R=16
+
+# The maximum radius from the observer that is integrated.  
+max_radius=32
+
+# Observed frequency for integration in GHz:
+obs_freq_GHz=23.
+
+# Flags to select which quantities to integrate:
+#  synchrotron emission, RM, DM, optical depth, free-free
+do_sync_emission=T
+do_rm=T
+do_dm=F
+do_tau=F
+do_ff=F
+
+# Output maps:
+obs_file_name=test_obs.fits
+obs_RM_file_name=test_rm.fits
+obs_DM_file_name=
+obs_tau_file_name=
+obs_ff_file_name=
+
+# If you do not wish a full sky map, you can give a list of HEALPix
+# pixels at which you want the integration performed, and it will
+# write the corresponding list of observables:
+list_in_file_name=
+list_out_file_name=
+
+#################################################################################
+# Cosmic ray electron (CRE) parameters
+#################################################################################
+
+# CRE model:  exponential disk with power law spectrum
+Cfield_type=1
+# power law index
+C1_p=3
+# scale radius (kpc)
+C1_hr=5
+# scale height (kpc)
+C1_hz=1
+## Added in later version of hammurabi
+##  # Normalization:  flux density at Sun position in 1/(GeV^2 cm^2 s sr).  Default from
+##  #  Strong et al 2007 Fig 4 at 10 GHz
+##  C1_JE=0.25
+
+#################################################################################
+# Thermal electrons (TE) parameters
+#################################################################################
+# By default, the NE2001 model is computed that requires no 
+# parameters.  You can, however, specify a model given in a binary file
+# (floating point type ) or a constant density.
+
+# For a constant field of this density per cubic centimetre.  When
+# zero, the NE2001 model is computed.
+TE_constant_pccm=0
+
+# Alternatively, specify a file name of binary data to read and its dimensions
+TE_grid_filename=
+TE_lx_kpc=
+TE_ly_kpc=
+TE_lz_kpc=
+TE_nx=
+TE_ny=
+TE_nz=
+
+# Include coupling of thermal electrons and random field as in Sun et al. 2008
+do_TE_Bran_coupling=F
+TE_Bran_coupling=0.01
+
+#################################################################################
+#  B-field parameters
+#################################################################################
+#
+# Select the field type.  Included fields are
+#  1:  ASS model from WMAP, Page et al. (2007)
+#  2:  Stanev BSS model (astro-ph/9607086)
+#  3:  Sun et al. ASS+Ring model (A&A, 477, 2008)
+#  4:  HRM model from Kachelriess et al. APh 2007 
+#  5:  TT model from Kalchelriess et al. ApH 2007 
+#  6:  External file, binary dump.  See code for format.
+#
+B_field_type=1
+
+# Parameters for WMAP ASS model
+B_field_b0=6
+B_field_psi0_deg=35
+B_field_psi1_deg=0.9
+B_field_xsi0_deg=25
+
+#  Include small-scale GRF turbulent component?
+B_field_do_random=F
+
+#  Index of 3-D power law turbulent spectrum (default -0.37-2 for large scales from 
+#  Han et al. 2004)
+B_field_alpha=
+# large-scale cut-off in kpc
+B_field_cutoff=5.
+
+# GRF box physical dimensions (kpc)
+B_field_lx=
+B_field_ly=
+B_field_lz=
+
+# box resolution
+B_field_nx=
+B_field_ny=
+B_field_nz=
+
+# Output file to store GRF simulation
+B_field_random_out=
+
+# Output to store total field 
+B_field_total_out=
+
+# Input file for B_field_type=6, reads in the coherent field (or total
+#  if you set B_field_do_random=F) in the same format as
+#  B_field_random_out or B_field_total_out:
+B_field_coherent_inp=
+
+# Input file to read in GRF simulation (e.g. produced by GARFIELDS)
+B_field_random_inp=
+# Maximum galacto-centric radius to include random component
+B_field_rmax=
+# Maximum sun-centric radius to include random component
+B_field_rmax_sun=
+
+# To simulate a box that is not the whole galaxy but which has one end
+#  at the observer and the x-axis pointing away from the observer at a
+#  given lon,lat, use *both* of these (i.e. don't expect it to use
+#  lat=0 if you only set lon):
+B_field_transform_lon=-999  # -999 means don't use
+B_field_transform_lat=-999  # -999 means don't use
+
+# Misc parameters:
+B_field_debug=F
+B_field_quiet=0

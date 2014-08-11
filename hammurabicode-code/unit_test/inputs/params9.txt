@@ -1,0 +1,14 @@
+obs_file_name=out/test9_obs.fits
+obs_dust_file_name=out/test9_obsd.fits
+obs_RM_file_name=out/test9_rm.fits
+B_field_type=1
+B_field_do_random=F
+do_sync_renorm=F
+do_dust_renorm=F
+Cfield_type=4
+galdef_outputPath=out/galprop_out
+galdef_runNumber=mytest1
+galprop_log=out/galprop.log
+obs_freq_GHz=22.
+
+

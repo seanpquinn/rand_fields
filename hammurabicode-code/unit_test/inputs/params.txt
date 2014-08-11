@@ -1,0 +1,11 @@
+obs_file_name=out/test_obs.fits
+obs_dust_file_name=out/test_obsd.fits
+obs_RM_file_name=out/test_rm.fits
+B_field_type=1
+B_field_do_random=F
+do_sync_renorm=F
+do_dust_renorm=F
+obs_freq_GHz=22.
+
+
+

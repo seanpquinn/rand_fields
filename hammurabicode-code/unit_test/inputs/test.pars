@@ -1,0 +1,18 @@
+obs_file_name=out/test_obs.fits
+obs_dust_file_name=out/test_obsd.fits
+obs_RM_file_name=out/test_rm.fits
+B_field_type=1
+B_field_do_random=F
+do_sync_renorm=F
+do_dust_renorm=F
+# new version param names
+B_field_psi0_deg=65
+B_field_psi1_deg=48.8
+B_field_xsi0_deg=20.5
+# old version param names
+B1_field_psi0=65
+B1_field_psi1=48.8  # hard-wired in old version
+B1_field_xsi0=20.5
+obs_freq_GHz=9999.
+
+

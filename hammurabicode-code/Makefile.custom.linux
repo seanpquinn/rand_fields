@@ -1,0 +1,28 @@
+BASE_DIR = $(HOME)/space/sw/
+GSL = $(BASE_DIR)/gsl/gsl-1.13/build/
+FFTW = $(BASE_DIR)/fftw/fftw-3.2.2/build/
+CFITSIO = $(BASE_DIR)/cfitsio/cfitsio/build/
+
+#What c++ compiler you are using
+CXX = g++ -m64
+
+#  With or without openMP
+#CXXFLAGS = -g -fopenmp -Wall
+CXXFLAGS = -g -Wall 
+LFLAGS_CUSTOM =  -fopenmp
+
+
+#Which Fortran compiler you are using
+FC:= gfortran
+#  For gfortran
+FCFLAGS:=-O2 -ffixed-form -ffixed-line-length-132 -c
+# For ifort
+#FCFLAGS:=-O -extend-source -c
+# For linking to C++ with gcc
+LFORTFLAGS= -Df2cFortran 
+
+# Shouldn't need to change this:
+ALL_INC = -I$(CFITSIO)/include -I$(GSL)/include -I.  -I$(FFTW)/include -I$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/include/
+ALL_L = -L$(CFITSIO)/lib -L$(GSL)/lib  -L$(FFTW)/lib -L$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/lib/ -L.
+
+

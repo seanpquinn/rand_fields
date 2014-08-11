@@ -1,0 +1,18 @@
+; IDL Version 8.1, Mac OS X (darwin x86_64 m64)
+; Journal File for tj@mac-33.cesr.fr
+; Working directory: /Big_Files/tj/Work/sw/hammurabi/sourceforge/hammurabicode-code
+; Date: Thu Jun 27 08:14:36 2013
+ 
+;Running HEALPix init
+;**************************
+; Welcome to Healpix 2.20a
+;**************************
+mollview,'unit_test/out/test_obs.fits'
+;reading the file ...
+;input file : Galactic coordinates
+;plot coord : Galactic coordinates
+;... making the projection ...
+;plotted area original MIN and MAX:   2.13910e-06   0.00322716
+;... computing the color table ...
+; % X windows protocol error: GLXBadContext.
+;... here it is.

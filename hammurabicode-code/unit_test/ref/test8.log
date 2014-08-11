@@ -1,0 +1,143 @@
+ Starting the Hammurabi code 
+
++-----------------+
+| hammurabi v2.20 |
++-----------------+
+
+Processor features detected: SSE, SSE2
+OpenMP active: max. 8 threads. 
+
+Parser: B_field_debug = F <default>
+Parser: B_field_type = 1
+Parser: B_field_quiet = 0 <default>
+Parser: B_field_r_max = 30 <default>
+Parser: B_field_rmax_sun = 30 <default>
+Parser: SunPosX = -8.5 <default>
+Parser: SunPosY = 0 <default>
+Parser: SunPosZ = 0 <default>
+Parser: B_field_do_random = T
+Parser: B_field_total_out = '' <default>
+Parser: B_field_interp = T
+Parser: B_field_nx = 300
+Parser: B_field_ny = 100
+Parser: B_field_nz = 100
+Parser: B_field_lx = 0.03
+Parser: B_field_ly = 0.01
+Parser: B_field_lz = 0.01
+Parser: B_field_transform_lon = 180
+Parser: B_field_transform_lat = 0
+Parser: B_field_b0 = 6 <default>
+Parser: B_field_psi0_deg = 35 <default>
+Parser: B_field_psi1_deg = 0.9 <default>
+Parser: B_field_xsi0_deg = 25 <default>
+[2012-10-23T08:53:06]  Generating WMAP model magnetic field
+Parser: B_field_cutoff = 5 <default>
+Parser: B_field_seed = 2075324
+Parser: B_field_RMS_uG = 60
+Parser: B_field_c0_uG = 1 <default>
+Parser: B_field_alpha = -2.37 <default>
+Parser: B_field_random_out = '' <default>
+Parser: B_field_rmax_ran = 20 <default>
+Parser: B_ran_mem_lim = 1 <default>
+Parser: B_field_random_inp = '' <default>
+Parser: TE_constant_pccm = 0 <default>
+Parser: TE_grid_filename = '' <default>
+Parser: Cfield_type = 1 <default>
+Parser: C1_p = 3 <default>
+Parser: C1_hr = 5 <default>
+Parser: C1_hz = 5
+Parser: C1_JE = 0.25 <default>
+ class Integrator constructor 
+Parser: obs_shell_index_numb = 2
+Parser: total_shell_numb = 3
+Parser: obs_NSIDE = 128
+Parser: vec_size_R = 300
+Parser: max_radius = 0.03
+Parser: x_diameter = 40 <default>
+Parser: y_diameter = 40 <default>
+Parser: z_diameter = 8 <default>
+Parser: simulation_boundary_type = 1 <default>
+Parser: obs_file_name = 'IQU.fits' <default>
+Parser: obs_RM_file_name = 'RM.fits' <default>
+Parser: obs_DM_file_name = 'DM.fits' <default>
+Parser: obs_tau_file_name = 'tau.fits' <default>
+Parser: obs_ff_file_name = 'ff.fits' <default>
+Parser: PF_file_name = 'pol_fraction.fits' <default>
+Parser: defl_int_fname = 'defl_int.fits' <default>
+Parser: defl_ori_fname = 'defl_ori.fits' <default>
+Parser: pol_map_in_kelvin_flag = T <default>
+Parser: I_PI_PA_flag = F <default>
+Parser: PF_flag = F <default>
+Parser: do_sync_emission = T <default>
+Parser: do_rm = T <default>
+Parser: do_dm = F <default>
+Parser: do_tau = F <default>
+Parser: do_ff = F <default>
+Parser: class_Integrator loud = F <default>
+Parser: do_TE_Bran_coupling = F <default>
+Parser: TE_Bran_coupling = 0.01 <default>
+
+
+----------------------
+HAMMURABI Sanity Check:
+
+DeltaR=0.0001 kpc
+At R_max (max Nside=256), DeltaX=0.000119921 kpc
+Random grid deltaX=0.0001 kpc
+Random grid deltaY=0.0001 kpc
+Random grid deltaZ=0.0001 kpc
+Transform along longitude 180 deg
+Grid from longitude 170.451 to 189.549 deg
+Memory for grid:  72 MB
+
+HAMMURABI Sanity Check done
+----------------------
+
+[2012-10-23T08:53:06]  Allocating arrays for random component
+[2012-10-23T08:53:06]  Making FFTW3 plans
+[2012-10-23T08:53:07]  Filling grid in Fourier space
+[2012-10-23T08:53:08]  Running FFTs
+[2012-10-23T08:53:08]  Original RMS of result in x-direction is 5.91262
+[2012-10-23T08:53:08]  Original RMS of result in y-direction is 5.76523
+[2012-10-23T08:53:08]  Original RMS of result in z-direction is 5.71445
+[2012-10-23T08:53:08]  Resetting all to 60
+Parser: obs_freq_GHz = 23
+Parser: do_defl_map = F <default>
+Parser: list_in_file_name = 'inputs/pixlist_anticenter_ns128.txt'
+Parser: non_eg_pol_sources_flag = F <default>
+Parser: item_obs_freq_flag = F <default>
+Parser: list_use_lonlat_range = F <default>
+Parser: lon_min = 0 <default>
+Parser: lon_max = 359.99 <default>
+Parser: lat_min = -90 <default>
+Parser: lat_max = 90 <default>
+Parser: list_out_file_name = 'out/test8_list'
+Parser:  pol_map_in_kelvin_flag = T <default>
+Parser: list_length = 1910
+ la data_total_shell size : 7640
+ Reading in list: inputs/pixlist_anticenter_ns128.txt
+ List is read! 
+ integrate2obs_list() initiated 
+ Observation shell has NSIDE 128
+ Total shell has NSIDE 256
+[2012-10-23T08:53:08]   shell number: 1
+ NSIDE:        64
+[2012-10-23T08:53:09]   shell number: 2
+ NSIDE:        128
+[2012-10-23T08:53:10]   shell number: 3
+ NSIDE:        256
+ integrate2obs_list() finished 
+ void List::save_list2file() initiated 
+ Writing info in out/test8_list_info.txt
+ info written 
+ List result for obs_shell saved to: out/test8_list.txt
+ List result for total_shell saved to: out/test8_list_total_data.txt
+ void List::save_list2file() finished 
+[2012-10-23T08:53:16]   Finishing the Hammurabi code
+Parser warning: unused parameter 'TE_constant_ppm'
+Parser warning: unused parameter 'do_dust'
+ read gal01.inp
+ read ne_arms_log.inp
+  read ne_gc.inp 
+  read neclumpN.NE2001.dat 
+  read nevoidN.NE2001.dat 

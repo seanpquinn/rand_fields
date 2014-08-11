@@ -1,0 +1,3 @@
+ ipix   freq [GHz]  I      Q      U      Int Dist [kpc] 
+ And for total_data: 
+ ipix  freq  I      Q      U      Int Dist    RM  DM 

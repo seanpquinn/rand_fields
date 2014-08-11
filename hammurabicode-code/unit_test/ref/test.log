@@ -1,0 +1,104 @@
+ Starting the Hammurabi code 
+
++-----------------+
+| hammurabi v2.20 |
++-----------------+
+
+Processor features detected: SSE, SSE2
+OpenMP active: max. 8 threads. 
+
+Parser: B_field_debug = F <default>
+Parser: B_field_type = 1
+Parser: B_field_quiet = 0 <default>
+Parser: B_field_r_max = 30 <default>
+Parser: B_field_rmax_sun = 30 <default>
+Parser: SunPosX = -8.5 <default>
+Parser: SunPosY = 0 <default>
+Parser: SunPosZ = 0 <default>
+Parser: B_field_do_random = F
+Parser: B_field_total_out = '' <default>
+Parser: B_field_b0 = 6 <default>
+Parser: B_field_psi0_deg = 35 <default>
+Parser: B_field_psi1_deg = 0.9 <default>
+Parser: B_field_xsi0_deg = 25 <default>
+[2012-10-23T08:53:06]  Generating WMAP model magnetic field
+Parser: TE_constant_pccm = 0 <default>
+Parser: TE_grid_filename = '' <default>
+Parser: Cfield_type = 1 <default>
+Parser: C1_p = 3 <default>
+Parser: C1_hr = 5 <default>
+Parser: C1_hz = 1 <default>
+Parser: C1_JE = 0.25 <default>
+ class Integrator constructor 
+Parser: obs_shell_index_numb = 1 <default>
+Parser: total_shell_numb = 1 <default>
+Parser: obs_NSIDE = 16 <default>
+Parser: vec_size_R = 16 <default>
+Parser: max_radius = 32 <default>
+Parser: x_diameter = 40 <default>
+Parser: y_diameter = 40 <default>
+Parser: z_diameter = 8 <default>
+Parser: simulation_boundary_type = 1 <default>
+Parser: obs_file_name = 'out/test_obs.fits'
+Parser: obs_RM_file_name = 'out/test_rm.fits'
+Parser: obs_DM_file_name = 'DM.fits' <default>
+Parser: obs_tau_file_name = 'tau.fits' <default>
+Parser: obs_ff_file_name = 'ff.fits' <default>
+Parser: PF_file_name = 'pol_fraction.fits' <default>
+Parser: defl_int_fname = 'defl_int.fits' <default>
+Parser: defl_ori_fname = 'defl_ori.fits' <default>
+Parser: pol_map_in_kelvin_flag = T <default>
+Parser: I_PI_PA_flag = F <default>
+Parser: PF_flag = F <default>
+Parser: do_sync_emission = T <default>
+Parser: do_rm = T <default>
+Parser: do_dm = F <default>
+Parser: do_tau = F <default>
+Parser: do_ff = F <default>
+Parser: class_Integrator loud = F <default>
+Parser: do_TE_Bran_coupling = F <default>
+Parser: TE_Bran_coupling = 0.01 <default>
+Parser: obs_freq_GHz = 22
+Parser: do_defl_map = F <default>
+Parser: list_in_file_name = '' <default>
+Parser: list_use_lonlat_range = F <default>
+ integrate2obs_maps() initiated 
+ Observation shell has NSIDE 16
+ Allocating memory for obs shell 
+ Zeroing obs shell before computation begin 
+ Zeroed!
+ Observation RM shell has NSIDE 16
+ Allocating memory for obs RM shell 
+ Zeroing obs RM shell before computation begin 
+ Zeroed!
+[2012-10-23T08:53:06]   shell number: 1
+ NSIDE:        16
+ Current shell interval is [0 , 32]
+ Declaring I,Q,U and RM, DM, tau and ff temporary Healpix_Maps 
+ temporary Healpix_Maps declared 
+ Allocating I,Q,U temporary map space 
+ allocation done 
+ Zeroing temporary maps 
+ temporary maps zeroed 
+ Allocating RM temporary map space 
+ allocation done 
+ Zeroing temporary maps 
+ temporary maps zeroed 
+ integrate2obs_maps() finished 
+ void Integrator::save_maps2file(void) initiated 
+ setting physical units to maps 
+ maps have now physical units 
+ the IQU obs map 
+ obs map saved to out/test_obs.fits
+ the RM map 
+ obs RM map saved to out/test_rm.fits
+ void Integrator::save_maps2file(void) finished 
+[2012-10-23T08:53:06]   Finishing the Hammurabi code
+Parser warning: unused parameter 'do_dust_renorm'
+Parser warning: unused parameter 'do_sync_renorm'
+Parser warning: unused parameter 'obs_dust_file_name'
+ read gal01.inp
+ read ne_arms_log.inp
+  read ne_gc.inp 
+  read neclumpN.NE2001.dat 
+  read nevoidN.NE2001.dat 
