@@ -1216,7 +1216,7 @@ void Integrator::radial_integration(const double min_shell_radius, const double 
 
           if(do_rm)
             {
-              const double RM_forefactor=-(CGS_U_qe*CGS_U_qe*CGS_U_qe)/(2.0*CGS_U_pi*CGS_U_MEC2*CGS_U_MEC2); //Minus sign added by SPQ on Aug 12 2014 to agree with literature convention
+              const double RM_forefactor=(CGS_U_qe*CGS_U_qe*CGS_U_qe)/(2.0*CGS_U_pi*CGS_U_MEC2*CGS_U_MEC2);
 
               // Sun et al. 2008, sec. 6.4.2
               // this might become more sophisticated one day.
