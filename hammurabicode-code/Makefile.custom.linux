@@ -1,7 +1,6 @@
-BASE_DIR = $(HOME)/space/sw/
-GSL = $(BASE_DIR)/gsl/gsl-1.13/build/
-FFTW = $(BASE_DIR)/fftw/fftw-3.2.2/build/
-CFITSIO = $(BASE_DIR)/cfitsio/cfitsio/build/
+GSL = /usr/include/gsl
+FFTW = /mnt/clarke_local/fftw-3.3.4
+CFITSIO = /mnt/clarke_local/cfitsio
 
 #What c++ compiler you are using
 CXX = g++ -m64
@@ -22,7 +21,6 @@ FCFLAGS:=-O2 -ffixed-form -ffixed-line-length-132 -c
 LFORTFLAGS= -Df2cFortran 
 
 # Shouldn't need to change this:
-ALL_INC = -I$(CFITSIO)/include -I$(GSL)/include -I.  -I$(FFTW)/include -I$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/include/
-ALL_L = -L$(CFITSIO)/lib -L$(GSL)/lib  -L$(FFTW)/lib -L$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/lib/ -L.
-
+ALL_INC = -I$(CFITSIO)/include -I$(GSL) -I.  -I$(FFTW)/include -I$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/include/
+ALL_L = -L$(CFITSIO)/lib -L$(GSL)  -L$(FFTW)/lib -L$(HEALPIX)/src/cxx/$(HEALPIX_TARGET)/lib/ -L.
 

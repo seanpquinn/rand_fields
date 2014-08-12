@@ -3,7 +3,7 @@
 #  multiple makefiles, I split them.  In these files are the things
 #  that change.  The rest shouldn't need to be any different.
 
-include Makefile.custom.mac
+include Makefile.custom.linux
 #include Makefile.custom.servso1
 #include Makefile.custom.magique3
 
