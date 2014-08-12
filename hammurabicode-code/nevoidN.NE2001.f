@@ -85,7 +85,6 @@ c	  write(6,*) 'reading nevoidN.dat.clean'
      .      nev(j),Fv(j),				! cm^{-3}, dimensionless
      .      aav(j),bbv(j),ccv(j),thvy(j), thvz(j),  	! kpc,kpc,kpc,deg,deg
      .      edge(j)					! 0 or 1
-
           if(voidflag .eq. 0) then
 	    slc = sin(lv(j)/radian)
 	    clc = cos(lv(j)/radian)
@@ -118,7 +117,6 @@ c    .           th1, th2
 	  first = .false.
 	  nvoids = j-1
 	  close(luvoid)
- 		write (*,*) ' read nevoidN.NE2001.dat '
 	endif
 
 

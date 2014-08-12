@@ -92,14 +92,12 @@ c	  write(6,"(a15,1x,8(f8.3,1x))")
 c    .           losname(j),lc(j),bc(j),dc(j),
 c    .           nec(j),Fc(j),xc(j),yc(j),zc(j)
 	    j=j+1
-
 	  endif
 	  go to 5
    99     continue
 	  first = .false.
 	  nclumps = j-1
 	  close(luclump)
-		write (*,*) ' read neclumpN.NE2001.dat '		
 	endif
 
 	necN = 0.
