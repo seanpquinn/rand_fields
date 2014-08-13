@@ -161,6 +161,16 @@ class B_field
   double *b_file_y;
   double *b_file_z;
 
+  // field7
+  // Random field generation, Sean Quinn Aug 12 2014
+  double b7_kmin;
+  double b7_Lc;
+  unsigned int b7_N_m;
+  double b7_nf;
+  double b7_dkn_const;
+  long long unsigned int b7_start_seed;
+
+
   // Your field here:
   //vec3 field10(vec3 coords);
 
@@ -171,6 +181,7 @@ class B_field
   vec3 field4(vec3 coords);
   vec3 field5(vec3 coords);
   vec3 field6(vec3 coords);
+  vec3 field7(vec3 coords); //Added by SPQ Aug 12 2014
 
   void read_B_params(paramfile &params);
 
@@ -206,7 +217,7 @@ class B_field
 	void setup_field4(double Rsun, double z1, double z2, double r1, double p, double epsilon_0);
 	void setup_field5(double b0, double Rsun, double r_min, double d, double z0, double p);
 	void setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, double tlon, double tlat, bool interp, std::string breg_inp_file);
-
+    void setup_field7(double kmin,double Lc,unsigned int num_modes,double nf,double dkn_const,long long unsigned int start_seed); //Added by SPQ Aug 12 2014
 
 
 	void setup_random(double alpha,double cutoff_kpc,int seed, double random_rms, double c0, double lx_kpc,double ly_kpc, double lz_kpc, int nx, int ny, int nz, std::string bran_file, double rmax_ran, double tlon, double tlat, bool interp, double mem_lim,bool debug, std::string bran_inp_file);

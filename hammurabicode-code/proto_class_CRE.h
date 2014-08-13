@@ -51,16 +51,7 @@ class CRE
   double C4_spec_index_p;
   //double alpha; already defined
   double C4_ncre[81][21];
-
-  // C9  deepak
-  double C9_spec_index_p;
-  double C9_ncre[51][301][301];
-
-  // C10  deepak
-  double C10_spec_index_p;
-  double C10_ncre_galprop[81][21];  
-  double C10_ncre_benyamin[51][301][301];
-
+  
   // C5
   double C5_spec_index_p;
   double C5_hr;
@@ -102,8 +93,6 @@ class CRE
   double cre_model_Sun2008 (double r, double z) const;
   double cre_model_Sun2008_II (double r, double z) const;
   double cre_model_galprop (double r, double z) const;
-  double cre_model_benyamin (double x, double y, double z) const;//deepak
-  double cre_model_benyamin_galprop (double r, double x, double y, double z) const;//deepak
   double cre_model_wmap_mod (double r, double z) const;
   double cre_model_JanssonFarrar2011 (double r, double z) const;
   double cre_model_galprop_mod (double r, double z) const;
@@ -114,8 +103,6 @@ class CRE
   void setup_Cfield2(double p1, double p2, double hr, double hz);
   void setup_Cfield3(double p1, double p2, double hr, double hz);
   void setup_Cfield4(double p,  double CRE_alpha);
-  void setup_Cfield9(double p,  double CRE_alpha);//deepak
-  void setup_Cfield10(double p,  double CRE_alpha);//deepak
   void setup_Cfield5(double p, double ha,  double hr, double hz, double CRE_alpha);
   void setup_Cfield6(double p, double ha,  double hr, double hz, double CRE_alpha);
   void setup_Cfield7(double p, double ha,  double hb, double CRE_alpha);

@@ -20,6 +20,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <hammurabi.h>
 #include <proto_class_B_field2.h>
 #include <vec3.h>
+#include <boost/math/special_functions/ellint_1.hpp>
+#include <boost/math/special_functions/ellint_2.hpp>
+#include <boost/random.hpp>
+#include <boost/random/normal_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/algorithm/string.hpp>
+#include <gsl/gsl_math.h>
+#include <fstream>
+#include <iostream>
+#include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 using namespace std;
 
@@ -49,6 +62,8 @@ B_field::B_field(){
 }
 //---------------------------------------------------------------
 
+  unsigned int nside_val; // Global value added by SPQ. Required to compute size of rand field arrays. Defaults to Nside=16.
+  unsigned int brfa_len; // Global value added by SPQ. Required to compute size of rand field arrays. Defaults to Nside=16.
 
 //---------------------------------------------------------------
 //  Read from parameter file and set up given field type.
@@ -56,6 +71,19 @@ B_field::B_field(){
 void B_field::read_B_params(paramfile &params) {
   // If you skip this function, need to run first the generic_setup
   // and then one of the setups plus maybe the random setup.
+
+  nside_val = params.find<unsigned int>("obs_NSIDE",16); // Added by SPQ Aug 12 2014
+  //First step: determine number of Hammurabi steps through grid to build rand field array
+  if(nside_val==1) brfa_len=710;
+  if(nside_val==2) brfa_len=2934;
+  if(nside_val==4) brfa_len=11790;
+  if(nside_val==8) brfa_len=47316;
+  if(nside_val==16) brfa_len=189276;
+  if(nside_val==32) brfa_len=757472;
+  if(nside_val==64) brfa_len=3030270;
+  if(nside_val==128) brfa_len=12118494;
+  if(nside_val==256) brfa_len=48469568;
+  //
 
   bfield_debug=params.find<bool>("B_field_debug",false);
   bfield_type=params.find<int>("B_field_type",3);
@@ -158,7 +186,30 @@ void B_field::read_B_params(paramfile &params) {
     setup_field6(lx, ly, lz, nx, ny, nz, tlon, tlat, grid_interp, inp_file);
   } 
 
-
+  //Random field generation function, added by SPQ Aug 12 2014
+  else if (bfield_type == 7) {
+    long long unsigned int start_seed = params.find<long long unsigned int>("start_seed",800); //Seed to begin the realization
+    double lmax = params.find<double>("lmax",100); // Outer scale of turbulence in pc
+    unsigned int num_modes = params.find<unsigned int>("N_m",800); // Number of modes to sum for turbulent field.
+    //Prepare pre-computed quantities
+    double kmin = 2. * CGS_U_pi / lmax;
+    double kmax = 1e5 * kmin;
+    double Lc = lmax / 5.; // Correlation length as defined by Harari, Mollerach & Roulet, JHEP 03 045 2002
+    double dkn_const = pow(10,( log10(kmax) - log10(kmin) ) / num_modes)-1.; //Log spacing constant
+    double kn = kmin; // kn begins at kmin
+    double nf = 0.; // Norm factor starts at 0
+    double delta_kn = 0.; // Change in kn starts at 0
+    // Compute power spectrum normalization constant
+    for(unsigned int i=0;i < num_modes; i++){
+        delta_kn = kn * dkn_const;
+        nf = nf + 4. * CGS_U_pi * pow(kn,2) * delta_kn / (1. + pow(kn*Lc,11./3.) );
+        kn = kn + delta_kn;
+    }
+    std::cout<< nf << std::endl;
+    setup_field7(kmin,Lc,num_modes,dkn_const,nf,start_seed);
+  }
+  //End field 7 setup
+ 
   // Your field here:
   else if (bfield_type == 10) {
   } // field 10
@@ -354,6 +405,18 @@ void B_field::setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, d
 
 }
 // setup_field6 end
+//---------------------------------------------------------------
+
+//Setup field 7
+void B_field::setup_field7(double kmin,double Lc,unsigned int num_modes,double nf,double dkn_const,long long unsigned int start_seed) {
+    b7_kmin = kmin;
+    b7_Lc = Lc;
+    b7_N_m = num_modes;
+    b7_nf = nf;
+    b7_dkn_const = dkn_const;
+    b7_start_seed = start_seed;
+}
+// Setup field 7 end 
 //---------------------------------------------------------------
 
 //Setup B-field writer
@@ -792,6 +855,155 @@ vec3 B_field::field6(vec3 coords) {
 //---------------------------------------------------------------
 
 
+//field7 Random field generation, Sean Quinn Aug 12 2014
+//First step: initialize array to store field and coord values
+//Need a function that returns the array size based on Nside. Added by SPQ Aug 13 2014
+vector<double> brfx;
+vector<double> brfy;
+vector<double> brfz;
+vector<double> brxc;
+vector<double> bryc;
+vector<double> brzc;
+/*
+int get_array_size(paramfile &params){
+  nside_val = params.find<unsigned int>("obs_NSIDE",16); // Added by SPQ Aug 12 2014
+  //First step: determine number of Hammurabi steps through grid to build rand field array
+  if(nside_val==1) brfa_len=710;
+  if(nside_val==2) brfa_len=2934;
+  if(nside_val==4) brfa_len=11790;
+  if(nside_val==8) brfa_len=47316;
+  if(nside_val==16) brfa_len=189276;
+  if(nside_val==32) brfa_len=757472;
+  if(nside_val==64) brfa_len=3030270;
+  if(nside_val==128) brfa_len=12118494;
+  if(nside_val==256) brfa_len=48469568;
+  return brfa_len;
+
+}
+*/
+//---------------------------------------------------------------
+
+//Next step: initialize global random seed
+long long unsigned int globRandSeed=0;
+//Next step: create dummy initialization variable used once in field7 function
+unsigned int init_indx = 0;
+//Final step: create index for brandfield array
+unsigned int brf_indx = 0;
+
+vec3 B_field::field7(vec3 coords){
+
+ //Setup vectors and other globals
+ if (init_indx == 0){ 
+    brfx.resize(brfa_len); //This line and the 5 following lines resize the vectors to appropriate size.
+    brfy.resize(brfa_len);
+    brfz.resize(brfa_len);
+    brxc.resize(brfa_len);
+    bryc.resize(brfa_len);
+    brzc.resize(brfa_len);
+    globRandSeed = b7_start_seed; // This passes the start seed from the parameter file, used for different realizations
+    init_indx = init_indx + 1; //This ensures the conditional is true only at the beginning of the run
+ }
+ 
+ double Rmax = 20*CGS_U_kpc; // outer boundary of GMF
+ // x,y,z is a Galactocentric cartesian system, with the Sun on the negative x-axis
+ double r     = sqrt(coords.x*coords.x + coords.y*coords.y);
+
+ // define boundaries outside of which B is zero. No grid points beyond Rmax are written to the file
+ if (r > Rmax)     { return vec3(0,0,0);}
+
+ boost::random::uniform_real_distribution<> unrDistA(0,2. * CGS_U_pi);
+ boost::random::uniform_real_distribution<> unrDist(0,2. * CGS_U_pi);
+
+ double zNPrime, kN, deltaKNConst;
+ double kMin = b7_kmin;
+ int PtsN = b7_N_m;
+ deltaKNConst = b7_dkn_const;
+ kN = kMin;
+
+ double sum_prefactor;
+
+ complex<double> BRandX(0.,0), BRandY(0.,0.), BRandZ(0.,0.);
+ double thetaN, phiN, betaN, alphaN;
+
+ // Two loops required to separate the origin seed from all other points
+if (coords.x/CGS_U_kpc==-8.5 and coords.y==0 and coords.z==0){ //If at solar, use solar seed
+    int solar_seed = 0; //Solar seeds 
+    for( int nRan=0; nRan < PtsN; nRan++ ){
+      boost::random::mt19937 gen(solar_seed);
+      thetaN = unrDistA(gen);
+      solar_seed = solar_seed + 1;
+      boost::random::mt19937 hen(solar_seed);
+      phiN = unrDist(hen);
+      solar_seed = solar_seed + 1;
+      boost::random::mt19937 fen(solar_seed);
+      betaN = unrDist(fen);
+      solar_seed = solar_seed + 1;
+      boost::random::mt19937 wren(solar_seed);
+      alphaN = unrDist(wren);
+      solar_seed = solar_seed + 1;
+
+      complex<double> x_hat(cos(alphaN) * cos(thetaN) * cos(phiN), -sin(alphaN)*sin(phiN));
+      complex<double> y_hat(cos(alphaN) * cos(thetaN) * sin(phiN), sin(alphaN)*cos(phiN));
+      double z_hat = -cos(alphaN) * sin(thetaN);
+      zNPrime = (sin(thetaN)*cos(phiN) * coords.x + sin(thetaN)*sin(phiN)*coords.y + cos(thetaN)*coords.z)/CGS_U_pc;
+      sum_prefactor = kN * sqrt(kN * deltaKNConst)/sqrt(1+pow(b7_Lc*kN,11./3.));
+      complex<double> exp_term_arg(0,zNPrime * kN + betaN);
+      BRandX += sum_prefactor * x_hat * exp(exp_term_arg);
+      BRandY += sum_prefactor * y_hat * exp(exp_term_arg);
+      BRandZ += sum_prefactor * z_hat * exp(exp_term_arg);
+
+      kN += kN * deltaKNConst;
+     }
+}
+ else{ //For all other coordinates use globRandSeed, which continues to increment
+     for( int nRan=0; nRan < PtsN; nRan++ ){
+
+      boost::random::mt19937 gen(globRandSeed);
+      thetaN = unrDistA(gen);
+      globRandSeed = globRandSeed + 1;
+      boost::random::mt19937 hen(globRandSeed);
+      phiN = unrDist(hen);
+      globRandSeed = globRandSeed + 1;
+      boost::random::mt19937 fen(globRandSeed);
+      betaN = unrDist(fen);
+      globRandSeed = globRandSeed + 1;
+      boost::random::mt19937 wren(globRandSeed);
+      alphaN = unrDist(wren);
+      globRandSeed = globRandSeed + 1;
+
+      complex<double> x_hat(cos(alphaN) * cos(thetaN) * cos(phiN), -sin(alphaN)*sin(phiN));
+      complex<double> y_hat(cos(alphaN) * cos(thetaN) * sin(phiN), sin(alphaN)*cos(phiN));
+      double z_hat = -cos(alphaN) * sin(thetaN);
+      zNPrime = (sin(thetaN)*cos(phiN) * coords.x + sin(thetaN)*sin(phiN)*coords.y + cos(thetaN)*coords.z)/CGS_U_pc;
+      sum_prefactor = kN * sqrt(kN * deltaKNConst)/sqrt(1+pow(b7_Lc*kN,11./3.));
+      complex<double> exp_term_arg(0,zNPrime * kN + betaN);
+      BRandX += sum_prefactor * x_hat * exp(exp_term_arg);
+      BRandY += sum_prefactor * y_hat * exp(exp_term_arg);
+      BRandZ += sum_prefactor * z_hat * exp(exp_term_arg);
+
+      kN += kN * deltaKNConst;
+     }
+ }
+
+ double BRandX_final = 2. * sqrt(CGS_U_pi) * real(BRandX) / b7_nf;
+ double BRandY_final = 2. * sqrt(CGS_U_pi) * real(BRandY) / b7_nf;
+ double BRandZ_final = 2. * sqrt(CGS_U_pi) * real(BRandZ) / b7_nf;
+
+ vec3 B_vec3(0.,0.,0.);
+
+ brfx[brf_indx]=BRandX_final;
+ brfy[brf_indx]=BRandY_final;
+ brfz[brf_indx]=BRandZ_final;
+ brxc[brf_indx]=coords.x/CGS_U_kpc;
+ bryc[brf_indx]=coords.y/CGS_U_kpc;
+ brzc[brf_indx]=coords.z/CGS_U_kpc;
+
+ brf_indx = brf_indx + 1;
+
+ return B_vec3;
+ 
+}
+//field7
 
 void B_field::fillRandom(bool do_alloc, std::string infile){
         bran_inp_file=infile;
@@ -1367,6 +1579,7 @@ vec3 B_field::return_Breg_cart( vec3 coords)
   case 4:  regular = field4(coords); break;
   case 5:  regular = field5(coords); break;
   case 6:  regular = field6(coords); break;
+  case 7:  regular = field7(coords); break; //Added by SPQ Aug 12 2014
     // Your field here:
     //  case 10: regular=field10(coords); break;
   default: cerr << " No bfield_type specified " << endl; exit(1); break;

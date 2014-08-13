@@ -97,18 +97,6 @@ void CRE::read_CRE_params(paramfile &params)
       double CRE_alpha = params.find<double>("alpha", 1.);
       setup_Cfield4(spec_index, CRE_alpha);
     }
-  else if(Cfield_type ==9)  //deepak
-    {
-      double spec_index = params.find<double>("C9_p",3.);
-      double CRE_alpha = params.find<double>("alpha", 1.);
-      setup_Cfield9(spec_index, CRE_alpha);
-    }
-  else if(Cfield_type ==10)  //deepak
-    {
-      double spec_index = params.find<double>("C10_p",3.);
-      double CRE_alpha = params.find<double>("alpha", 1.);
-      setup_Cfield10(spec_index, CRE_alpha);
-    }
   else if(Cfield_type == 5)
     {
       double spec_index = params.find<double>("C5_p",3.);
@@ -155,19 +143,15 @@ void CRE::read_CRE_params(paramfile &params)
 // distribution, see Ribicky&Lightman).
 double CRE::get_C (double R, double THE, double PHI) const
 {
-  double r_gc, PHI_gc, x_gc, y_gc, z_gc;
+  double r_gc, PHI_gc, z_gc;
   vec3 cart_vec = Vec_Handling::RTHEPHI2cart_vec(R,THE,PHI);
   vec3 gc_cart_vec = Vec_Handling::ec_cart_vec2gc_cart_vec(cart_vec, SunPosition);
-  x_gc = gc_cart_vec.x;
-  y_gc = gc_cart_vec.y;
   Vec_Handling::cart_coord2cyl_coord(gc_cart_vec,r_gc,PHI_gc, z_gc);
 
   if(Cfield_type==1){return cre_model_WMAP_3th_year (r_gc,z_gc);}
   else if(Cfield_type==2){return cre_model_Sun2008 (r_gc,z_gc);}
   else if(Cfield_type==3){return cre_model_Sun2008_II (r_gc,z_gc);}
   else if(Cfield_type==4){return cre_model_galprop (r_gc,z_gc);}
-  else if(Cfield_type==9){return cre_model_benyamin (x_gc,y_gc,z_gc);} //deepak
-  else if(Cfield_type==10){return cre_model_benyamin_galprop (r_gc,x_gc,y_gc,z_gc);} //deepak
   else if(Cfield_type==5){return cre_model_wmap_mod (r_gc,z_gc);}
   else if(Cfield_type==6){return cre_model_JanssonFarrar2011 (r_gc,z_gc);}
   else if(Cfield_type==7){return cre_model_galprop_mod (r_gc,z_gc);}
@@ -190,8 +174,6 @@ double CRE::get_spec_index_p(double obs_freq, double ec_R, double ec_THE, double
 {
   if(Cfield_type==1)  {return C1_spec_index_p;}
   else if(Cfield_type==4)  {return C4_spec_index_p;}
-  else if(Cfield_type==9)  {return C9_spec_index_p;} //deepak
-  else if(Cfield_type==10)  {return C10_spec_index_p;} //deepak
   else if(Cfield_type==5)  {return C5_spec_index_p;}
   else if(Cfield_type==6)  {return C6_spec_index_p;}
   else if(Cfield_type==7)  {return C7_spec_index_p;}
@@ -307,64 +289,6 @@ double CRE::cre_model_galprop (double r, double z) const
   C_cre = CRE_alpha*C4_ncre[zi][rj]/CGS_U_ccm;
   return C_cre;
 }
-
-
-double CRE::cre_model_benyamin (double x, double y, double z) const  //deepak
-{
-  double CRE_alpha = alpha; 
-  double C_cre;
-
-  // find r,z indices [hardcoded size]
-  int zi = int(  25 + (z/CGS_U_kpc)*100 + 0.5 );//deepak 
-  int yj = int(150  - (y/CGS_U_kpc)*10  + 0.5 );//deepak     sun is at +8.5 in benyamin 
-  int xk = int(150  - (x/CGS_U_kpc)*10  + 0.5 );//deepak     sun is at +8.5 in benyamin
-      
-  if(zi<0||zi>50||yj<0||yj>300||xk<0||xk>300)  
- 		C_cre = 0.0;
-  else
-  		C_cre = CRE_alpha*C9_ncre[zi][yj][xk]/CGS_U_ccm;
-
-  return C_cre;
-}
-
-
-
-double CRE::cre_model_benyamin_galprop (double r, double x, double y, double z) const  //deepak
-{
-  double CRE_alpha = alpha; 
-  double C_cre;
-
-
-  int zi = int( (abs(z)/CGS_U_kpc)*10 + 40. + 0.05 ); // +40 because of symmetry in z
-  int rj = int( (r/CGS_U_kpc) + 0.5 ); 
- 
-  if(zi<0||zi>80||rj<0||rj>21)  
-  		   C_cre = 0.0;
-  		else
-  		   C_cre = CRE_alpha*C10_ncre_galprop[zi][rj]/CGS_U_ccm;
-
- 
-  
-  C_cre = CRE_alpha*C10_ncre_galprop[zi][rj]/CGS_U_ccm;
-  
-  
-  if((abs(z)/CGS_U_kpc)<=0.25)
-	{
-	  	zi = int(  25 + (z/CGS_U_kpc)*100 + 0.5 );//deepak 
-  		int yj = int(150  - (y/CGS_U_kpc)*10  + 0.5 );//deepak     sun is at +8.5 in benyamin 
-	        int xk = int(150  - (x/CGS_U_kpc)*10  + 0.5 );//deepak     sun is at +8.5 in benyamin
-      
-                if(zi<0||zi>50||yj<0||yj>300||xk<0||xk>300)  
- 		   C_cre = 0.0;
-  		else
-  		   C_cre = CRE_alpha*C10_ncre_benyamin[zi][yj][xk]/CGS_U_ccm;
-	}
-
-
-  return C_cre;
-}
-
-
 
 // modified wmap ncre model, for parameters  ha=5.62,  hr=5.34, hz=1.99 it is a pretty good spatial fit to Galprop model
 double CRE::cre_model_wmap_mod (double r, double z) const
@@ -518,83 +442,6 @@ void CRE::setup_Cfield4(double p, double CRE_alpha)
     }
   }
 }
-
-
-void CRE::setup_Cfield9(double p, double CRE_alpha) //deepak
-{
-  Log("Setting up n_cre model from benyamin input\n");
-  // for empty constuctor Cfield_type has to be set.
-  if(Cfield_type==0) {Cfield_type=9;}
-  C9_spec_index_p=p;
-  alpha=CRE_alpha;
-  
-  // create look-up table for benyamin data
-  string benyamin_data_filename = "ncre_benyamin.txt";
-  ifstream benyamin_data(benyamin_data_filename.c_str() ); 
-  if (!benyamin_data) {
-    cerr << "   Could not open benyamin data file: " << benyamin_data_filename << endl;
-    exit(EXIT_FAILURE);
-  }
-  int zi = 51; 
-  int yj = 301;
-  int xk = 301;
-  for (int i=0; i<zi; i++){
-    for (int j=0; j<yj; j++){
-	for (int k=0; k<xk; k++){
-      benyamin_data >> C9_ncre[i][j][k];
-      }
-    }
-  }
-}
-
-
-void CRE::setup_Cfield10(double p, double CRE_alpha) //deepak
-{
-  Log("Setting up n_cre model from benyamin input\n");
-  // for empty constuctor Cfield_type has to be set.
-  if(Cfield_type==0) {Cfield_type=10;}
-  C10_spec_index_p=p;
-  alpha=CRE_alpha;
-  
-  // create look-up table for benyamin data
-  string benyamin_data_filename = "ncre_benyamin.txt";
-  ifstream benyamin_data(benyamin_data_filename.c_str() ); 
-  if (!benyamin_data) {
-    cerr << "   Could not open benyamin data file: " << benyamin_data_filename << endl;
-    exit(EXIT_FAILURE);
-  }
-  int zi = 51; 
-  int yj = 301;
-  int xk = 301;
-  for (int i=0; i<zi; i++){
-    for (int j=0; j<yj; j++){
-	for (int k=0; k<xk; k++){
-      benyamin_data >> C10_ncre_benyamin[i][j][k];
-      }
-    }
-  }
-  
- // create look-up table for GALPROP data
-  string galprop_data_filename = "ncre_galprop.txt";
-  ifstream galprop_data(galprop_data_filename.c_str() ); 
-  if (!galprop_data) {
-    cerr << "   Could not open galprop data file: " << galprop_data_filename << endl;
-    exit(EXIT_FAILURE);
-  }
-  
-  zi = 81; // list indices, in r (z comes in 0.1 kpc steps from -4 to 4 kpc, r in 1 kpc steps from 0 to 20 kpc)
-  int rj = 21;
-  for (int i=0; i<zi; i++){
-    for (int j=0; j<rj; j++){
-      galprop_data >> C10_ncre_galprop[i][j];
-    }
-  }
-
-
-}
-
-
-
 
 void CRE::setup_Cfield5(double p, double ha, double hr, double hz, double CRE_alpha)
 {
