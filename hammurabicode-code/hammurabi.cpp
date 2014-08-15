@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hammurabi.h"
 #include "proto_class_List.h"
 #include "CGS_units_file.h"
-
+#include <write_bfield.cpp>
 
 using namespace std;
 
@@ -73,10 +73,13 @@ int main (int argc, const char **argv)
     //    listobj.load_full_list_freq(obs_freq);
     intobj.integrate2obs_list(listobj, magobj, ne_density, cre);
     listobj.save_list2file();
+ 
 // J.West:	listobj.save_latlon();
 
   }
 
+  bfield_out(params.find<int>("file_name_num",0)); // [Modified by SPQ 5/8/14]
   Log(" Finishing the Hammurabi code\n");
+
   return 0;
 }
