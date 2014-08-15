@@ -205,7 +205,6 @@ void B_field::read_B_params(paramfile &params) {
         nf = nf + 4. * CGS_U_pi * pow(kn,2) * delta_kn / (1. + pow(kn*Lc,11./3.) );
         kn = kn + delta_kn;
     }
-    std::cout<< nf << std::endl;
     setup_field7(kmin,Lc,num_modes,dkn_const,nf,start_seed);
   }
   //End field 7 setup
@@ -856,33 +855,13 @@ vec3 B_field::field6(vec3 coords) {
 
 
 //field7 Random field generation, Sean Quinn Aug 12 2014
-//First step: initialize array to store field and coord values
-//Need a function that returns the array size based on Nside. Added by SPQ Aug 13 2014
+//First step: initialize vectors to store field and coord values
 vector<double> brfx;
 vector<double> brfy;
 vector<double> brfz;
 vector<double> brxc;
 vector<double> bryc;
 vector<double> brzc;
-/*
-int get_array_size(paramfile &params){
-  nside_val = params.find<unsigned int>("obs_NSIDE",16); // Added by SPQ Aug 12 2014
-  //First step: determine number of Hammurabi steps through grid to build rand field array
-  if(nside_val==1) brfa_len=710;
-  if(nside_val==2) brfa_len=2934;
-  if(nside_val==4) brfa_len=11790;
-  if(nside_val==8) brfa_len=47316;
-  if(nside_val==16) brfa_len=189276;
-  if(nside_val==32) brfa_len=757472;
-  if(nside_val==64) brfa_len=3030270;
-  if(nside_val==128) brfa_len=12118494;
-  if(nside_val==256) brfa_len=48469568;
-  return brfa_len;
-
-}
-*/
-//---------------------------------------------------------------
-
 //Next step: initialize global random seed
 long long unsigned int globRandSeed=0;
 //Next step: create dummy initialization variable used once in field7 function
