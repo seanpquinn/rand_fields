@@ -170,6 +170,93 @@ class B_field
   double b7_dkn_const;
   long long unsigned int b7_start_seed;
 
+  //field8
+  // Random field computation, Sean Quinn Aug 15 2014
+  double b8_b1;
+  double b8_b2;
+  double b8_b3;
+  double b8_b4;
+  double b8_b5;
+  double b8_b6;
+  double b8_b7;
+  double b8_b8;
+  double b8_b9;
+  double b8_b10;
+  double b8_b11;
+  double b8_b12;
+  double b8_b13;
+  double b8_b14;
+  double b8_b15;
+  double b8_b16;
+  double b8_b17;
+  double b8_b18;
+  double b8_b19;
+  double b8_b20;
+  double br8_b1;
+  double br8_b2;
+  double br8_b3;
+  double br8_b4;
+  double br8_b5;
+  double br8_b6;
+  double br8_b7;
+  double br8_b8;
+  double br8_b9;
+  double br8_b10;
+  double br8_b11;
+  double br8_b12;
+  double br8_b13;
+  double br8_kappa;
+  double br8_sqrt_beta;
+  std::vector<double> b8_brandx;
+  std::vector<double> b8_brandy;
+  std::vector<double> b8_brandz;
+
+  //field9
+  // Random field computation, Sean Quinn Aug 15 2014
+  double b9_b1;
+  double b9_b2;
+  double b9_b3;
+  double b9_b4;
+  double b9_b5;
+  double b9_b6;
+  double b9_b7;
+  double b9_b8;
+  double b9_b9;
+  double b9_b10;
+  double b9_b11;
+  double b9_b12;
+  double b9_b13;
+  double b9_b14;
+  double b9_b15;
+  double b9_b16;
+  double b9_b17;
+  double b9_b18;
+  double b9_b19;
+  double b9_b20;
+  double br9_b1;
+  double br9_b2;
+  double br9_b3;
+  double br9_b4;
+  double br9_b5;
+  double br9_b6;
+  double br9_b7;
+  double br9_b8;
+  double br9_b9;
+  double br9_b10;
+  double br9_b11;
+  double br9_b12;
+  double br9_b13;
+  double br9_kappa;
+  double br9_sqrt_beta;
+  std::vector<double> b9_brandx;
+  std::vector<double> b9_brandy;
+  std::vector<double> b9_brandz;
+
+  //field10 
+  // Random field computation, Sean Quinn Aug 15 2014
+  std::vector<double> b10_brandx;
+  std::vector<double> b10_brandy;
+  std::vector<double> b10_brandz;
 
   // Your field here:
   //vec3 field10(vec3 coords);
@@ -182,6 +269,9 @@ class B_field
   vec3 field5(vec3 coords);
   vec3 field6(vec3 coords);
   vec3 field7(vec3 coords); //Added by SPQ Aug 12 2014
+  vec3 field8(vec3 coords); //Added by SPQ Aug 15 2014
+  vec3 field9(vec3 coords); //Added by SPQ Aug 15 2014
+  vec3 field10(vec3 coords); //Added by SPQ Aug 15 2014
 
   void read_B_params(paramfile &params);
 
@@ -218,7 +308,23 @@ class B_field
 	void setup_field5(double b0, double Rsun, double r_min, double d, double z0, double p);
 	void setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, double tlon, double tlat, bool interp, std::string breg_inp_file);
     void setup_field7(double kmin,double Lc,unsigned int num_modes,double nf,double dkn_const,long long unsigned int start_seed); //Added by SPQ Aug 12 2014
-
+    void setup_field8(double b1, double b2, double b3, double b4, double b5, 
+                            double b6, double b7, double b8, double b9, double b10, 
+	                        double b11, double b12, double b13, double b14, double b15, 
+                            double b16, double b17, double b18, double b19, double b20,
+                            double br1, double br2, double br3, double br4, double br5, double br6,
+                            double br7, double br8, double br9, double br10, double br11,
+                            double br12, double br13, std::vector<double> brandx, 
+                            std::vector<double> brandy, std::vector<double> brandz, double kappa, double sqrt_beta); //Added by SPQ Aug 15 2014
+    void setup_field9(double b1, double b2, double b3, double b4, double b5, 
+                            double b6, double b7, double b8, double b9, double b10, 
+	                        double b11, double b12, double b13, double b14, double b15, 
+                            double b16, double b17, double b18, double b19, double b20,
+                            double br1, double br2, double br3, double br4, double br5, double br6,
+                            double br7, double br8, double br9, double br10, double br11,
+                            double br12, double br13, std::vector<double> brandx, 
+                            std::vector<double> brandy, std::vector<double> brandz, double kappa, double sqrt_beta); //Added by SPQ Aug 16 2014
+    void setup_field10(std::vector<double> brandx, std::vector<double> brandy, std::vector<double> brandz); //Added by SPQ Aug 16 2014
 
 	void setup_random(double alpha,double cutoff_kpc,int seed, double random_rms, double c0, double lx_kpc,double ly_kpc, double lz_kpc, int nx, int ny, int nz, std::string bran_file, double rmax_ran, double tlon, double tlat, bool interp, double mem_lim,bool debug, std::string bran_inp_file);
 
