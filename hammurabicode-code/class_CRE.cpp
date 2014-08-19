@@ -287,6 +287,7 @@ double CRE::cre_model_galprop (double r, double z) const
   int rj = int( (r/CGS_U_kpc) + 0.5 ); 
 
   C_cre = CRE_alpha*C4_ncre[zi][rj]/CGS_U_ccm;
+
   return C_cre;
 }
 

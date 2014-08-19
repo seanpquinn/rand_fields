@@ -533,7 +533,8 @@ void B_field::setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, d
 	//b_file_x=static_cast<double*>(malloc( sizeof(double)*grid_nx*grid_ny*2*(grid_nz/2+1)));
     //b_file_y=static_cast<double*>(malloc( sizeof(double)*grid_nx*grid_ny*2*(grid_nz/2+1)));
     //b_file_z=static_cast<double*>(malloc( sizeof(double)*grid_nx*grid_ny*2*(grid_nz/2+1)));
-	int n = sizeof(double)*grid_nx*grid_ny*grid_nz;
+	//int n = sizeof(double)*grid_nx*grid_ny*grid_nz; //This gives you the wrong size! Sean Quinn Aug 19 2014
+    int n = grid_nx*grid_ny*grid_nz; //length of array is number of elements in cube, Sean Quinn Aug 19 2014
 	cout << " n = " << n << "\n";
 	b_file_x=new double[n];
 	b_file_y=new double[n];
@@ -562,13 +563,13 @@ void B_field::setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, d
 					}
 					
 					// Replace these lines 					
-					//reg_inp >> b_file_x[index];
-					//reg_inp >> b_file_y[index];
-					//reg_inp >> b_file_z[index];
-					
-					reg_inp.read( reinterpret_cast<char*>(&b_file_x[index]), sizeof( double ) );
-					reg_inp.read( reinterpret_cast<char*>(&b_file_y[index]), sizeof( double ) );
-					reg_inp.read( reinterpret_cast<char*>(&b_file_z[index]), sizeof( double ) );
+					reg_inp >> b_file_x[index];
+					reg_inp >> b_file_y[index];
+					reg_inp >> b_file_z[index];
+					//Following 3 lines are commented out because they don't work! Sean Quinn Aug 19 2014
+					//reg_inp.read( reinterpret_cast<char*>(&b_file_x[index]), sizeof( double ) );
+					//reg_inp.read( reinterpret_cast<char*>(&b_file_y[index]), sizeof( double ) );
+					//reg_inp.read( reinterpret_cast<char*>(&b_file_z[index]), sizeof( double ) );
 					
 					
 					// Fixing the units:
@@ -1495,6 +1496,7 @@ vec3 B_field::field8(vec3 coords) {
 	B_vec3.z=0.;
  }
 
+
  //Random field magnitude is added in quadrature
  double BRdisk_mag2 = pow(Branddisk_cart[0],2)+pow(Branddisk_cart[1],2)+pow(Branddisk_cart[2],2);
  double BRhalo_mag2 = pow(Brandhalo_cart[0],2)+pow(Brandhalo_cart[1],2)+pow(Brandhalo_cart[2],2);
@@ -1789,8 +1791,8 @@ unsigned int b10_mmm = 0; //Random field vector index
 vec3 B_field::field10(vec3 coords) {
   vec3 B_vec3(0.,0.,0.);
   B_vec3.x = b10_brandx[b10_mmm]*CGS_U_muGauss;
-  B_vec3.y = b10_brandx[b10_mmm]*CGS_U_muGauss;
-  B_vec3.z = b10_brandx[b10_mmm]*CGS_U_muGauss;
+  B_vec3.y = b10_brandy[b10_mmm]*CGS_U_muGauss;
+  B_vec3.z = b10_brandz[b10_mmm]*CGS_U_muGauss;
   b10_mmm = b10_mmm + 1;
   return B_vec3;
 } //field10
