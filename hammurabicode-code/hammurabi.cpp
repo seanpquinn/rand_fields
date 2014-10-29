@@ -78,7 +78,7 @@ int main (int argc, const char **argv)
 
   }
 
-  bfield_out(params.find<int>("file_name_num",0)); // [Modified by SPQ 5/8/14]
+  bfield_out(params.find<int>("file_name_num",0), params.find<int>("B_field_type",7)); // [Modified by SPQ 5/8/14]
   Log(" Finishing the Hammurabi code\n");
 
   return 0;

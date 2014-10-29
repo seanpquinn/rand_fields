@@ -23,10 +23,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <boost/math/special_functions/ellint_1.hpp>
 #include <boost/math/special_functions/ellint_2.hpp>
 #include <boost/random.hpp>
-#include <boost/random/normal_distribution.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
-#include <boost/algorithm/string.hpp>
+#include <boost/random/normal_distribution.hpp>
 #include <gsl/gsl_math.h>
 #include <fstream>
 #include <iostream>
@@ -62,8 +61,18 @@ B_field::B_field(){
 }
 //---------------------------------------------------------------
 
-  unsigned int nside_val; // Global value added by SPQ. Required to compute size of rand field arrays. Defaults to Nside=16.
-  unsigned int brfa_len; // Global value added by SPQ. Required to compute size of rand field arrays. Defaults to Nside=16.
+  //Global added by SPQ, required random numbers to sum wave modes
+  //Vectors to hold the random k vectors
+  std::vector<double> xi_x_real;  
+  std::vector<double> xi_y_real;
+  std::vector<double> xi_z_real;
+  std::vector<double> xi_x_imag;
+  std::vector<double> xi_y_imag;
+  std::vector<double> xi_z_imag;
+  std::vector<double> exp_x_pf;
+  std::vector<double> exp_y_pf;
+  std::vector<double> exp_z_pf;
+  std::vector<double> beta_n_vec;
 
 //---------------------------------------------------------------
 //  Read from parameter file and set up given field type.
@@ -71,19 +80,6 @@ B_field::B_field(){
 void B_field::read_B_params(paramfile &params) {
   // If you skip this function, need to run first the generic_setup
   // and then one of the setups plus maybe the random setup.
-
-  nside_val = params.find<unsigned int>("obs_NSIDE",16); // Added by SPQ Aug 12 2014
-  //First step: determine number of Hammurabi steps through grid to build rand field array
-  if(nside_val==1) brfa_len=710;
-  if(nside_val==2) brfa_len=2934;
-  if(nside_val==4) brfa_len=11790;
-  if(nside_val==8) brfa_len=47316;
-  if(nside_val==16) brfa_len=189276;
-  if(nside_val==32) brfa_len=757472;
-  if(nside_val==64) brfa_len=3030270;
-  if(nside_val==128) brfa_len=12118494;
-  if(nside_val==256) brfa_len=48469568;
-  //
 
   bfield_debug=params.find<bool>("B_field_debug",false);
   bfield_type=params.find<int>("B_field_type",3);
@@ -188,24 +184,53 @@ void B_field::read_B_params(paramfile &params) {
 
   //Random field generation function, added by SPQ Aug 12 2014
   else if (bfield_type == 7) {
-    long long unsigned int start_seed = params.find<long long unsigned int>("start_seed",800); //Seed to begin the realization
+    // Random field seed and seed vector construction
+    long unsigned int random_input_seed = params.find<long unsigned int>("random_input_seed",2342); //Random seed
     double lmax = params.find<double>("lmax",100); // Outer scale of turbulence in pc
     unsigned int num_modes = params.find<unsigned int>("N_m",800); // Number of modes to sum for turbulent field.
     //Prepare pre-computed quantities
     double kmin = 2. * CGS_U_pi / lmax;
-    double kmax = 1e5 * kmin;
+    double kmax = (2. * CGS_U_pi / 5.)*10;
     double Lc = lmax / 5.; // Correlation length as defined by Harari, Mollerach & Roulet, JHEP 03 045 2002
     double dkn_const = pow(10,( log10(kmax) - log10(kmin) ) / num_modes)-1.; //Log spacing constant
     double kn = kmin; // kn begins at kmin
     double nf = 0.; // Norm factor starts at 0
     double delta_kn = 0.; // Change in kn starts at 0
-    // Compute power spectrum normalization constant
+    double pm_sign = 1.; //Sign factor, use plus or minus depending on seed
+    unsigned int pm_rand_seed;
+    double theta_n, phi_n,beta_n, alpha_n;
+    boost::random::uniform_int_distribution<> pmdist(1,5000);
+    boost::random::uniform_real_distribution<> rand_angle(0., 2.*CGS_U_pi);
     for(unsigned int i=0;i < num_modes; i++){
         delta_kn = kn * dkn_const;
-        nf = nf + 4. * CGS_U_pi * pow(kn,2) * delta_kn / (1. + pow(kn*Lc,11./3.) );
+        nf = nf + 4. * CGS_U_pi * kn * kn * delta_kn / (1. + pow(kn*Lc,11./3.) );
         kn = kn + delta_kn;
+      boost::random::mt19937 gen(random_input_seed+i);
+      theta_n = rand_angle(gen);
+      boost::random::mt19937 hen(random_input_seed+num_modes+i);
+      phi_n = rand_angle(hen);
+      boost::random::mt19937 fen(random_input_seed+2*num_modes+i);
+      beta_n = rand_angle(fen);
+      boost::random::mt19937 wren(random_input_seed+3*num_modes+i);
+      alpha_n = rand_angle(wren);
+      boost::random::mt19937 pm_gen(random_input_seed+i);
+      pm_rand_seed = pmdist(pm_gen);
+      if ( pm_rand_seed % 2 == 0)
+          pm_sign = -1.;
+      else 
+          pm_sign = 1.;
+      xi_x_real.push_back(-cos(alpha_n) * sin(phi_n));
+      xi_x_imag.push_back(pm_sign * sin(alpha_n) * sin(theta_n) * cos(phi_n));
+      xi_y_real.push_back(cos(alpha_n) * cos(phi_n));
+      xi_y_imag.push_back(pm_sign * sin(alpha_n) * sin(theta_n) * sin(phi_n));
+      xi_z_real.push_back(0.);
+      xi_z_imag.push_back(pm_sign * sin(alpha_n) * cos(theta_n));
+      exp_x_pf.push_back(cos(theta_n) * cos(phi_n));
+      exp_y_pf.push_back(cos(theta_n) * sin(phi_n));
+      exp_z_pf.push_back(sin(theta_n));
+      beta_n_vec.push_back(beta_n);
     }
-    setup_field7(kmin,Lc,num_modes,dkn_const,nf,start_seed);
+    setup_field7(kmin,Lc,num_modes,dkn_const,nf);
   }
   //End field 7 setup
  
@@ -214,7 +239,6 @@ void B_field::read_B_params(paramfile &params) {
   //Requires JF12a and JF12b style optimization parameters
   else if (bfield_type == 8) {
     double sqrt_beta = params.find<double>("sqrt_beta",1.16619);
-    double kappa = params.find<double>("kappa",1.);
     string brand_file=params.find<string>("brand_filename","./nfield_out_1.txt");
     double b1       = params.find<double>("B_param_1",1.);
     double b2       = params.find<double>("B_param_2",1.);
@@ -236,36 +260,25 @@ void B_field::read_B_params(paramfile &params) {
     double b18       = params.find<double>("B_param_18",1.);
     double b19       = params.find<double>("B_param_19",1.);
     double b20       = params.find<double>("B_param_20",1.);
-    double br1       = params.find<double>("Br_param_1",1.);
-    double br2       = params.find<double>("Br_param_2",1.);
-    double br3       = params.find<double>("Br_param_3",1.);
-    double br4       = params.find<double>("Br_param_4",1.);
-    double br5       = params.find<double>("Br_param_5",1.);
-    double br6       = params.find<double>("Br_param_6",1.);
-    double br7       = params.find<double>("Br_param_7",1.);
-    double br8       = params.find<double>("Br_param_8",1.);
-    double br9       = params.find<double>("Br_param_9",1.);
-    double br10       = params.find<double>("Br_param_10",1.);
-    double br11       = params.find<double>("Br_param_11",1.);
-    double br12       = params.find<double>("Br_param_12",1.);
-    double br13       = params.find<double>("Br_param_13",1.);
-    vector<double> brandx;
-    vector<double> brandy;
-    vector<double> brandz;
+    vector<double> bstrix;
+    vector<double> bstriy;
+    vector<double> bstriz;
     string line;
     ifstream infile (brand_file.c_str());
     int file_length=0;
     if (infile.is_open())
     {
-        cout << "Random field loaded successfully" << endl;
+        cout << "\t Opening random field file ..." << endl;
         while ( getline(infile,line) ){
             file_length = file_length + 1;
         }    
     }
     else{
-        cout << "FAILED to load random field" << endl;
+        cout << "\t Failed to open random field file!" << endl;
+        std::exit(-1);
     }
     infile.close();
+    cout << "\t Loading random field ..." << endl;
     ifstream infile2 (brand_file.c_str());
     for (int i=0;i<file_length;i++){
             double bx_temp = 0.;
@@ -274,15 +287,16 @@ void B_field::read_B_params(paramfile &params) {
             infile2 >> bx_temp;
             infile2 >> by_temp;
             infile2 >> bz_temp;
-            brandx.push_back(bx_temp);
-            brandy.push_back(by_temp);
-            brandz.push_back(bz_temp);
+            bstrix.push_back(bx_temp);
+            bstriy.push_back(by_temp);
+            bstriz.push_back(bz_temp);
     }
     infile2.close();
+    cout << "\t Closing random field file." << endl;
+    cout << "\t Successfully loaded random field!" << endl;
     setup_field8(b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,
-                 b15,b16,b17,b18,b19,b20,br1,br2,br3,br4,br5,br6,
-                 br7,br8,br9,br10,br11,br12,br13,brandx,brandy,brandz,
-                 kappa,sqrt_beta);
+                 b15,b16,b17,b18,b19,b20,bstrix,bstriy,bstriz,
+                 sqrt_beta);
 }
     //End field8 setup
 
@@ -293,6 +307,7 @@ void B_field::read_B_params(paramfile &params) {
     double sqrt_beta = params.find<double>("sqrt_beta",1.16619);
     double kappa = params.find<double>("kappa",1.);
     string brand_file=params.find<string>("brand_filename","./nfield_out_1.txt");
+    string bstri_file=params.find<string>("bstri_filename","./nfield_out_1.txt");
     double b1       = params.find<double>("B_param_1",1.);
     double b2       = params.find<double>("B_param_2",1.);
     double b3       = params.find<double>("B_param_3",1.);
@@ -329,20 +344,25 @@ void B_field::read_B_params(paramfile &params) {
     vector<double> brandx;
     vector<double> brandy;
     vector<double> brandz;
+    vector<double> bstrix;
+    vector<double> bstriy;
+    vector<double> bstriz;
     string line;
     ifstream infile (brand_file.c_str());
     int file_length=0;
     if (infile.is_open())
     {
-        cout << "Random field loaded successfully" << endl;
+        cout << "\t Opening the random field file ..." << endl;
         while ( getline(infile,line) ){
             file_length = file_length + 1;
         }    
     }
     else{
-        cout << "FAILED to load random field" << endl;
+        cout << "\t Failed to open the random field file!" << endl;
+        std::exit(-1);
     }
     infile.close();
+    cout << "\t Loading the random field ..." << endl;
     ifstream infile2 (brand_file.c_str());
     for (int i=0;i<file_length;i++){
             double bx_temp = 0.;
@@ -356,17 +376,117 @@ void B_field::read_B_params(paramfile &params) {
             brandz.push_back(bz_temp);
     }
     infile2.close();
+    cout << "\t Closing the random field file." << endl;
+    cout << "\t Loading the striated field ..." << endl;
+    ifstream infile3 (bstri_file.c_str());
+    for (int i=0;i<file_length;i++){
+            double bx_temp = 0.;
+            double by_temp = 0.;
+            double bz_temp = 0.;
+            infile2 >> bx_temp;
+            infile2 >> by_temp;
+            infile2 >> bz_temp;
+            bstrix.push_back(bx_temp);
+            bstriy.push_back(by_temp);
+            bstriz.push_back(bz_temp);
+    }
+    infile3.close();
+    cout << "\t Closing the striated field file." << endl;
+    cout << "\t Random and striated field loaded successfully!" << endl;
     setup_field9(b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,
                  b15,b16,b17,b18,b19,b20,br1,br2,br3,br4,br5,br6,
                  br7,br8,br9,br10,br11,br12,br13,brandx,brandy,brandz,
-                 kappa,sqrt_beta);
+                 kappa,sqrt_beta,bstrix,bstriy,bstriz);
 }
     //End field9 setup
 
   //Field10: Pure GJQ random, no scaling by JF12
   //This function loads a normalized random field file
-  //The random field file is the only required parameter
+  //Required parameters are normalized random field file and the Brms constant
   else if (bfield_type == 10) {
+    string brand_file=params.find<string>("brand_filename","./nfield_out_1.txt");
+    double brms_factor=params.find<double>("Brms_uG",1.);
+    vector<double> brandx;
+    vector<double> brandy;
+    vector<double> brandz;
+    string line;
+    ifstream infile (brand_file.c_str());
+    int file_length=0;
+    if (infile.is_open())
+    {
+        cout << "\t Opening the random field file ..." << endl;
+        while ( getline(infile,line) ){
+            file_length = file_length + 1;
+        }    
+    }
+    else{
+        cout << "\t FAILED to open random field file!" << endl;
+        std::exit(-1);
+    }
+    infile.close();
+    cout << "\t Loading the random field ..." << endl;
+    ifstream infile2 (brand_file.c_str());
+    for (int i=0;i<file_length;i++){
+            double bx_temp = 0.;
+            double by_temp = 0.;
+            double bz_temp = 0.;
+            infile2 >> bx_temp;
+            infile2 >> by_temp;
+            infile2 >> bz_temp;
+            brandx.push_back(bx_temp);
+            brandy.push_back(by_temp);
+            brandz.push_back(bz_temp);
+    }  
+    infile2.close();
+    cout << "\t Closing the random field file" << endl;
+    cout << "\t Random field loaded successfully!" << endl;
+    setup_field10(brandx,brandy,brandz,brms_factor);
+  } 
+  // field 10
+
+  // field 11 (regular JF12, optimized parameters, no pseudo random field)
+
+  else if (bfield_type==11){
+    double b1       = params.find<double>("B_param_1",1.);
+    double b2       = params.find<double>("B_param_2",1.);
+    double b3       = params.find<double>("B_param_3",1.);
+    double b4       = params.find<double>("B_param_4",1.);
+    double b5       = params.find<double>("B_param_5",1.);
+    double b6       = params.find<double>("B_param_6",1.);
+    double b7       = params.find<double>("B_param_7",1.);
+    double b8       = params.find<double>("B_param_8",1.);
+    double b9       = params.find<double>("B_param_9",1.);
+    double b10       = params.find<double>("B_param_10",1.);
+    double b11       = params.find<double>("B_param_11",1.);
+    double b12       = params.find<double>("B_param_12",1.);
+    double b13       = params.find<double>("B_param_13",1.);
+    double b14       = params.find<double>("B_param_14",1.);
+    double b15       = params.find<double>("B_param_15",1.);
+    double b16       = params.find<double>("B_param_16",1.);
+    double b17       = params.find<double>("B_param_17",1.);
+    double b18       = params.find<double>("B_param_18",1.);
+    double b19       = params.find<double>("B_param_19",1.);
+    double b20       = params.find<double>("B_param_20",1.);
+    double b21       = params.find<double>("B_param_21",1.);
+    double b22       = params.find<double>("B_param_22",1.);
+    double b23       = params.find<double>("B_param_23",1.);
+    double b24       = params.find<double>("B_param_24",1.);
+    double b25       = params.find<double>("B_param_25",1.);
+    double b26       = params.find<double>("B_param_26",1.);
+    double b27       = params.find<double>("B_param_27",1.);
+    double b28       = params.find<double>("B_param_28",1.);
+    double b29       = params.find<double>("B_param_29",1.);
+    double b30       = params.find<double>("B_param_30",1.);
+    setup_field11(b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,b16,b17,b18,b19,b20,b21,b22,b23,b24,b25,b26,b27,b28,b29,b30); 
+  }
+
+  // field 12
+  //Constant field with optional Kolmogorov random field, added by SPQ Oct 28 2014
+  else if (bfield_type == 12) {
+    double bx_const=params.find<double>("bx_const",1.);
+    double by_const=params.find<double>("by_const",1.);
+    double bz_const=params.find<double>("bz_const",1.);
+    double brms_factor=params.find<double>("Brms_uG",1.);
     string brand_file=params.find<string>("brand_filename","./nfield_out_1.txt");
     vector<double> brandx;
     vector<double> brandy;
@@ -376,15 +496,17 @@ void B_field::read_B_params(paramfile &params) {
     int file_length=0;
     if (infile.is_open())
     {
-        cout << "Random field loaded successfully" << endl;
+        cout << "\t Opening the random field file ..." << endl;
         while ( getline(infile,line) ){
             file_length = file_length + 1;
         }    
     }
     else{
-        cout << "FAILED to load random field" << endl;
+        cout << "\t FAILED to open random field file!" << endl;
+        std::exit(-1);
     }
     infile.close();
+    cout << "\t Loading the random field ..." << endl;
     ifstream infile2 (brand_file.c_str());
     for (int i=0;i<file_length;i++){
             double bx_temp = 0.;
@@ -396,11 +518,14 @@ void B_field::read_B_params(paramfile &params) {
             brandx.push_back(bx_temp);
             brandy.push_back(by_temp);
             brandz.push_back(bz_temp);
-    }
+    } 
     infile2.close();
-    setup_field10(brandx,brandy,brandz);
-  } 
-  // field 10
+    cout << "\t Random field loaded successfully!" << endl;
+    cout << "\t Closing the random field file" << endl;
+    setup_field12(bx_const,by_const,bz_const,brandx,brandy,brandz,brms_factor);
+  }
+  //End field 12 setup
+
 
   if (dorand) {
     // From Han et al. 2004 ApJ
@@ -421,7 +546,6 @@ void B_field::read_B_params(paramfile &params) {
     setup_random(alpha,cutoff,seed,rms,c0,lx,ly,lz,nx,ny,nz,file, rmax_ran, tlon, tlat, grid_interp, mem_lim,bfield_debug, inp_file);
 
   } else dorand=false;
-
 
 } //read_B_params
 //---------------------------------------------------------------
@@ -598,13 +722,12 @@ void B_field::setup_field6(double lx,double ly,double lz,int nx,int ny,int nz, d
 
 //Setup field 7
 void B_field::setup_field7(double kmin,double Lc,unsigned int num_modes,
-                           double nf,double dkn_const,long long unsigned int start_seed) {
+                           double nf,double dkn_const) {
     b7_kmin = kmin;
     b7_Lc = Lc;
     b7_N_m = num_modes;
     b7_nf = nf;
     b7_dkn_const = dkn_const;
-    b7_start_seed = start_seed;
 }
 // Setup field 7 end 
 //---------------------------------------------------------------
@@ -614,10 +737,8 @@ void B_field::setup_field8(double b1, double b2, double b3, double b4, double b5
                             double b6, double b7, double b8, double b9, double b10, 
 	                        double b11, double b12, double b13, double b14, double b15, 
                             double b16, double b17, double b18, double b19, double b20,
-                            double br1, double br2, double br3, double br4, double br5, double br6,
-                            double br7, double br8, double br9, double br10, double br11,
-                            double br12, double br13, vector<double> brandx, 
-                            vector<double> brandy, vector<double> brandz, double kappa, double sqrt_beta){
+                            vector<double> bstrix, vector<double> bstriy, vector<double> bstriz, 
+                            double sqrt_beta){
   Log("Generating      field");
   b8_b1=b1;
   b8_b2=b2;
@@ -639,26 +760,13 @@ void B_field::setup_field8(double b1, double b2, double b3, double b4, double b5
   b8_b18=b18;
   b8_b19=b19;
   b8_b20=b20;
-  br8_b1=br1;
-  br8_b2=br2;
-  br8_b3=br3;
-  br8_b4=br4;
-  br8_b5=br5;
-  br8_b6=br6;
-  br8_b7=br7;
-  br8_b8=br8;
-  br8_b9=br9;
-  br8_b10=br10;
-  br8_b11=br11;
-  br8_b12=br12;
-  br8_b13=br13;
-  br8_kappa=kappa;
   br8_sqrt_beta=sqrt_beta;
-  b8_brandx=brandx;
-  b8_brandy=brandy;
-  b8_brandz=brandz;
-} // setup_field8
+  b8_bstrix=bstrix;
+  b8_bstriy=bstriy;
+  b8_bstriz=bstriz;
+} // setup_field8 end
 
+//---------------------------------------------------------------
 //Setup field 9
 void B_field::setup_field9(double b1, double b2, double b3, double b4, double b5, 
                             double b6, double b7, double b8, double b9, double b10, 
@@ -667,7 +775,8 @@ void B_field::setup_field9(double b1, double b2, double b3, double b4, double b5
                             double br1, double br2, double br3, double br4, double br5, double br6,
                             double br7, double br8, double br9, double br10, double br11,
                             double br12, double br13, vector<double> brandx, 
-                            vector<double> brandy, vector<double> brandz, double kappa, double sqrt_beta){
+                            vector<double> brandy, vector<double> brandz, double kappa, double sqrt_beta,
+                            vector<double> bstrix,vector<double> bstriy,vector<double> bstriz){
   Log("Generating      field");
   b9_b1=b1;
   b9_b2=b2;
@@ -707,17 +816,70 @@ void B_field::setup_field9(double b1, double b2, double b3, double b4, double b5
   b9_brandx=brandx;
   b9_brandy=brandy;
   b9_brandz=brandz;
-} // setup_field9
+  b9_bstrix=bstrix;
+  b9_bstriy=bstriy;
+  b9_bstriz=bstriz;
+} // setup_field9 end
 
+//---------------------------------------------------------------
 //Setup field10
-void B_field::setup_field10(vector<double> brandx, vector<double> brandy, vector<double> brandz){
+void B_field::setup_field10(vector<double> brandx, vector<double> brandy, vector<double> brandz, double brms_factor){
   b10_brandx=brandx;
   b10_brandy=brandy;
   b10_brandz=brandz;
-} //setup_field10
+  b10_brms=brms_factor;
+} //setup_field10 end
 
+//---------------------------------------------------------------
+//Setup field11
+void B_field::setup_field11(double b1, double b2, double b3, double b4, double b5, double b6, double b7, double b8, double b9, double b10, double b11, double b12, double b13, double b14, double b15, double b16, double b17, double b18, double b19, double b20, double b21, double b22, double b23, double b24, double b25, double b26, double b27, double b28, double b29, double b30){
+  Log("Generating      field");
+  b11_b1=b1; 
+  b11_b2=b2;
+  b11_b3=b3;
+  b11_b4=b4;
+  b11_b5=b5;
+  b11_b6=b6;
+  b11_b7=b7;
+  b11_b8=b8;
+  b11_b9=b9;
+  b11_b10=b10;
+  b11_b11=b11;
+  b11_b12=b12;
+  b11_b13=b13;
+  b11_b14=b14;
+  b11_b15=b15;
+  b11_b16=b16;
+  b11_b17=b17;
+  b11_b18=b18;
+  b11_b19=b19;
+  b11_b20=b20;
+  b11_b21=b21;
+  b11_b22=b22;
+  b11_b23=b23;
+  b11_b24=b24;
+  b11_b25=b25;
+  b11_b26=b26;
+  b11_b27=b27;
+  b11_b28=b28;
+  b11_b29=b29;
+  b11_b30=b30;
+} // setup_field11 end
 
-
+//---------------------------------------------------------------
+//Setup field 12
+void B_field::setup_field12(double bx_const,double by_const,double bz_const,vector<double> brandx,vector<double> brandy, vector<double> brandz,double brms_factor) {
+    b12_bxc = bx_const;
+    b12_byc = by_const;
+    b12_bzc = bz_const;
+    b12_brandx=brandx;
+    b12_brandy=brandy;
+    b12_brandz=brandz;
+    b12_brms=brms_factor;
+}
+// Setup field 12 end
+ 
+//---------------------------------------------------------------
 //Setup B-field writer
 void B_field::setup_writer(std::string btotfile,int out_nx, int out_ny, int out_nz, double out_lx,double out_ly,double out_lz, double tlon, double tlat,  bool interp, bool B_only) {
 	btot_file=btotfile;
@@ -734,8 +896,6 @@ void B_field::setup_writer(std::string btotfile,int out_nx, int out_ny, int out_
 }
 // setup_writer end
 //---------------------------------------------------------------
-
-
 
 //---------------------------------------------------------------
 void B_field::setup_random(double alpha,double cutoff,int seed, double rms, double c0, double lx,double ly, double lz, int nx, int ny, int nz, std::string file, double rmax_ran, double transform_lon, double transform_lat, bool interp, double mem_lim,bool debug, std::string inp_file) {
@@ -1152,26 +1312,8 @@ vector<double> brfz;
 vector<double> brxc;
 vector<double> bryc;
 vector<double> brzc;
-//Next step: initialize global random seed
-long long unsigned int globRandSeed=0;
-//Next step: create dummy initialization variable used once in field7 function
-unsigned int init_indx = 0;
-//Final step: create index for brandfield array
-unsigned int brf_indx = 0;
 
 vec3 B_field::field7(vec3 coords){
-
- //Setup vectors and other globals
- if (init_indx == 0){ 
-    brfx.resize(brfa_len); //This line and the 5 following lines resize the vectors to appropriate size.
-    brfy.resize(brfa_len);
-    brfz.resize(brfa_len);
-    brxc.resize(brfa_len);
-    bryc.resize(brfa_len);
-    brzc.resize(brfa_len);
-    globRandSeed = b7_start_seed; // This passes the start seed from the parameter file, used for different realizations
-    init_indx = init_indx + 1; //This ensures the conditional is true only at the beginning of the run
- }
  
  double Rmax = 20*CGS_U_kpc; // outer boundary of GMF
  // x,y,z is a Galactocentric cartesian system, with the Sun on the negative x-axis
@@ -1180,10 +1322,7 @@ vec3 B_field::field7(vec3 coords){
  // define boundaries outside of which B is zero. No grid points beyond Rmax are written to the file
  if (r > Rmax)     { return vec3(0,0,0);}
 
- boost::random::uniform_real_distribution<> unrDistA(0,2. * CGS_U_pi);
- boost::random::uniform_real_distribution<> unrDist(0,2. * CGS_U_pi);
-
- double zNPrime, kN, deltaKNConst;
+ double kN, deltaKNConst;
  double kMin = b7_kmin;
  int PtsN = b7_N_m;
  deltaKNConst = b7_dkn_const;
@@ -1192,66 +1331,19 @@ vec3 B_field::field7(vec3 coords){
  double sum_prefactor;
 
  complex<double> BRandX(0.,0), BRandY(0.,0.), BRandZ(0.,0.);
- double thetaN, phiN, betaN, alphaN;
 
- // Two loops required to separate the origin seed from all other points
-if (coords.x/CGS_U_kpc==-8.5 and coords.y==0 and coords.z==0){ //If at solar, use solar seed
-    int solar_seed = 0; //Solar seeds 
-    for( int nRan=0; nRan < PtsN; nRan++ ){
-      boost::random::mt19937 gen(solar_seed);
-      thetaN = unrDistA(gen);
-      solar_seed = solar_seed + 1;
-      boost::random::mt19937 hen(solar_seed);
-      phiN = unrDist(hen);
-      solar_seed = solar_seed + 1;
-      boost::random::mt19937 fen(solar_seed);
-      betaN = unrDist(fen);
-      solar_seed = solar_seed + 1;
-      boost::random::mt19937 wren(solar_seed);
-      alphaN = unrDist(wren);
-      solar_seed = solar_seed + 1;
+ for( int nRan=0; nRan < PtsN; nRan++ ){
+  complex<double> x_hat(xi_x_real[nRan],xi_x_imag[nRan]);
+  complex<double> y_hat(xi_y_real[nRan],xi_y_imag[nRan]);
+  complex<double> z_hat(xi_z_real[nRan],xi_z_imag[nRan]);
 
-      complex<double> x_hat(cos(alphaN) * cos(thetaN) * cos(phiN), -sin(alphaN)*sin(phiN));
-      complex<double> y_hat(cos(alphaN) * cos(thetaN) * sin(phiN), sin(alphaN)*cos(phiN));
-      double z_hat = -cos(alphaN) * sin(thetaN);
-      zNPrime = (sin(thetaN)*cos(phiN) * coords.x + sin(thetaN)*sin(phiN)*coords.y + cos(thetaN)*coords.z)/CGS_U_pc;
-      sum_prefactor = kN * sqrt(kN * deltaKNConst)/sqrt(1+pow(b7_Lc*kN,11./3.));
-      complex<double> exp_term_arg(0,zNPrime * kN + betaN);
-      BRandX += sum_prefactor * x_hat * exp(exp_term_arg);
-      BRandY += sum_prefactor * y_hat * exp(exp_term_arg);
-      BRandZ += sum_prefactor * z_hat * exp(exp_term_arg);
+  sum_prefactor = kN * sqrt(kN * deltaKNConst)/sqrt(1+pow(b7_Lc*kN,11./3.));
+  complex<double> exp_term_arg(0,exp_x_pf[nRan]*coords.x/CGS_U_pc+exp_y_pf[nRan]*coords.y/CGS_U_pc+exp_z_pf[nRan]*coords.z/CGS_U_pc+beta_n_vec[nRan]);
+  BRandX += sum_prefactor * x_hat * exp(exp_term_arg);
+  BRandY += sum_prefactor * y_hat * exp(exp_term_arg);
+  BRandZ += sum_prefactor * z_hat * exp(exp_term_arg);
 
-      kN += kN * deltaKNConst;
-     }
-}
- else{ //For all other coordinates use globRandSeed, which continues to increment
-     for( int nRan=0; nRan < PtsN; nRan++ ){
-
-      boost::random::mt19937 gen(globRandSeed);
-      thetaN = unrDistA(gen);
-      globRandSeed = globRandSeed + 1;
-      boost::random::mt19937 hen(globRandSeed);
-      phiN = unrDist(hen);
-      globRandSeed = globRandSeed + 1;
-      boost::random::mt19937 fen(globRandSeed);
-      betaN = unrDist(fen);
-      globRandSeed = globRandSeed + 1;
-      boost::random::mt19937 wren(globRandSeed);
-      alphaN = unrDist(wren);
-      globRandSeed = globRandSeed + 1;
-
-      complex<double> x_hat(cos(alphaN) * cos(thetaN) * cos(phiN), -sin(alphaN)*sin(phiN));
-      complex<double> y_hat(cos(alphaN) * cos(thetaN) * sin(phiN), sin(alphaN)*cos(phiN));
-      double z_hat = -cos(alphaN) * sin(thetaN);
-      zNPrime = (sin(thetaN)*cos(phiN) * coords.x + sin(thetaN)*sin(phiN)*coords.y + cos(thetaN)*coords.z)/CGS_U_pc;
-      sum_prefactor = kN * sqrt(kN * deltaKNConst)/sqrt(1+pow(b7_Lc*kN,11./3.));
-      complex<double> exp_term_arg(0,zNPrime * kN + betaN);
-      BRandX += sum_prefactor * x_hat * exp(exp_term_arg);
-      BRandY += sum_prefactor * y_hat * exp(exp_term_arg);
-      BRandZ += sum_prefactor * z_hat * exp(exp_term_arg);
-
-      kN += kN * deltaKNConst;
-     }
+  kN += kN * deltaKNConst;
  }
 
  double BRandX_final = 2. * sqrt(CGS_U_pi) * real(BRandX) / b7_nf;
@@ -1260,21 +1352,29 @@ if (coords.x/CGS_U_kpc==-8.5 and coords.y==0 and coords.z==0){ //If at solar, us
 
  vec3 B_vec3(0.,0.,0.);
 
- brfx[brf_indx]=BRandX_final;
- brfy[brf_indx]=BRandY_final;
- brfz[brf_indx]=BRandZ_final;
- brxc[brf_indx]=coords.x/CGS_U_kpc;
- bryc[brf_indx]=coords.y/CGS_U_kpc;
- brzc[brf_indx]=coords.z/CGS_U_kpc;
-
- brf_indx = brf_indx + 1;
+ brfx.push_back(BRandX_final);
+ brfy.push_back(BRandY_final);
+ brfz.push_back(BRandZ_final);
+ brxc.push_back(coords.x/CGS_U_kpc);
+ bryc.push_back(coords.y/CGS_U_kpc);
+ brzc.push_back(coords.z/CGS_U_kpc);
 
  return B_vec3;
  
 }
 //field7
 
-//Field 8: JF12a + JF12b*GJQs Added by Sean Quinn Aug 15 2014
+//Field 8: JF12a + stri Added by Sean Quinn Aug 15 2014
+//-----------------------------------------------------
+//Update, Aug 22 2014
+//There was a major mistake in the striated field computation: the KRF should not be scaled by JF12b
+//This is has been corrected. As a result many lines are commented out because JF12b does not need 
+//to be computed. These can eventually be deleted, but I will wait until this new method has been confirmed.
+//Update, Oct 20 2014
+//Striated field is now being computed outside of Hammurabi in a Python script. The script loads the 
+//ordered regular field vector with an ordered KRF vector and does a proper normalization
+//Field 8 and 9 then load this striated field
+//-----------------------------------------------------
 unsigned int b8_mmm = 0; //Random field vector index
 //---------------------------------------------------------------
 vec3 B_field::field8(vec3 coords) {
@@ -1293,22 +1393,8 @@ vec3 B_field::field8(vec3 coords) {
   double h_disk  = b8_b9;   // height of transition between disk and toroidal halo
   double w_disk  = b8_b10;  // transition width between disk and toroidal halo
 
-  //Random Field disk parameters, Sean Quinn 2/12/2014
-  double bRandDisk1 = br8_b1;
-  double bRandDisk2 = br8_b2;
-  double bRandDisk3 = br8_b3;
-  double bRandDisk4 = br8_b4;
-  double bRandDisk5 = br8_b5;
-  double bRandDisk6 = br8_b6;
-  double bRandDisk7 = br8_b7;
-  double bRandDisk8 = br8_b8;
-  double bRandDiskInt = br8_b9;
-  double z0RandDisk = br8_b10;
-  double B0RandHalo = br8_b11;
-  double r0RandHalo = br8_b12;
-  double z0RandHalo = br8_b13;
+  //Scaling parameter for striated field
   double beta_rand = br8_sqrt_beta;
-  double brand_scale = br8_kappa;
 
   // toroidal halo parameters
   double Bn = b8_b11;   // field strength in the north
@@ -1356,7 +1442,6 @@ vec3 B_field::field8(vec3 coords) {
   double zprofile = 1./(1+exp(-2./w_disk*(abs(z)/CGS_U_kpc-h_disk)) );
 
   double B_cyl_disk[3]={0,0,0}; // the disk field in cylindrical coordinates
-  double B_cyl_Randdisk[3]={0,0,0}; //Random field disk component
   
   if ( (r > rcent) )  // disk field zero elsewhere
   {
@@ -1379,54 +1464,17 @@ vec3 B_field::field8(vec3 coords) {
        double r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI-CGS_U_pi));
        if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+CGS_U_pi)); }
        if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+3*CGS_U_pi)); }
-       // Modified to also select the appropriate random field disk coefficient, Sean Quinn 2/12/2014, original line commented out below.
-       // for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i];} }    // "region 8,7,6,..,2"
-       for (int i=7; i>=0; i--){
-            if (r_negx < rc_B[i]*CGS_U_kpc){
-                b_disk = bv_B[i];
-            }
-        }
-
+       
        // the disk field in cylindrical coordinates
        B_cyl_disk[0] =  b_disk*B0*sin(CGS_U_pi/180.*inc)*(1-zprofile);
        B_cyl_disk[1] =  b_disk*B0*cos(CGS_U_pi/180.*inc)*(1-zprofile);
      }
    }
-   
- // ---------------------------------------------------------------------------------------------------
- // -------KRF Disk component
-	if ( (r < rmin) )
-		B_cyl_Randdisk[1] = bRandDiskInt * exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.) * CGS_U_muGauss;
-	else{
-		double bv_RandB [8] = {bRandDisk1, bRandDisk2, bRandDisk3, bRandDisk4, bRandDisk5, bRandDisk6, bRandDisk7, 0.}; //Random constant array
-		double b7rand = 0.;
-		for (int i=0; i<7; i++){
-			b7rand -= f[i]*bv_RandB[i]/f[7];
-		} // last spiral strength is set by the others, to conserve flux
-		bv_RandB[7] = b7rand;
-		// iteratively figure out which spiral arm the current coordinates (r, phi) corresponds to.
-		double b_diskRand = 0; //Random disk constant
-		double r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI-CGS_U_pi));
-		if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+CGS_U_pi)); }
-		if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+3*CGS_U_pi)); }
-		// Modified to also select the appropriate random field disk coefficient, Sean Quinn 2/12/2014, original line commented out below.
-		// for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i];} }    // "region 8,7,6,..,2"
-		for (int i=7; i>=0; i--){
-			if (r_negx < rc_B[i]*CGS_U_kpc){
-				b_diskRand = bv_RandB[i];
-			}
-		}
-		//Random disk field
-		B_cyl_Randdisk[0] = b_diskRand * B0 * sin(CGS_U_pi/180.*inc)* exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.);
-		B_cyl_Randdisk[1] = b_diskRand * B0 * cos(CGS_U_pi/180.*inc) * exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.);
-	 }
- // ---------------------------------------------------------------------------------------------------
 
  // ---------------------------------------------------------------------------------------------------
  // --- Toroidal halo component
   double b1, rh;
   double B_h = 0;
-  double B_hrand = 0;
   if ( z >= 0) {     // NORTH
     b1  = Bn*CGS_U_muGauss;
     rh  = rn;               // transition radius between inner-outer region, (units added later)
@@ -1436,9 +1484,7 @@ vec3 B_field::field8(vec3 coords) {
 	rh  = rs;
   }
   B_h = b1*(1. - 1./(1.+exp(-2./wh*(r/CGS_U_kpc-rh))))*exp(-(abs(z))/(z0*CGS_U_kpc)); // vertical exponentialfall-off
-  B_hrand = (B0RandHalo*CGS_U_muGauss) * exp(-r/(r0RandHalo*CGS_U_kpc)) * exp(-pow(z/(z0RandHalo*CGS_U_kpc),2)/2.); //spq 2/13/14
   double B_cyl_h[3]={ 0., B_h*zprofile, 0. };
-  double B_cyl_hrand[3]={0., B_hrand, 0.}; //spq 2/13/14
 
  // ---------------------------------------------------------------------------------------------------
  // --- X-field component
@@ -1480,48 +1526,29 @@ vec3 B_field::field8(vec3 coords) {
  B_cyl[2] = B_cyl_disk[2] +  B_cyl_h[2] + B_cyl_X[2];
 
  double B_cart[3];
- double Branddisk_cart[3];
- double Brandhalo_cart[3];
  vec3 B_vec3(0.,0.,0.);
+ vec3 Brand_vec3(0.,0.,0.);
  Cyl2Cart(PHI,B_cyl,B_cart);
- Cyl2Cart(PHI,B_cyl_Randdisk,Branddisk_cart);
- Cyl2Cart(PHI,B_cyl_hrand,Brandhalo_cart);
  B_vec3.x=B_cart[0];
  B_vec3.y=B_cart[1];
  B_vec3.z=B_cart[2];
 
- if (rho < rho_GC) { 
- 	B_vec3.x=0.;
-	B_vec3.y=0.;
-	B_vec3.z=0.;
- }
+ double B_stri_x = beta_rand*b8_bstrix[b8_mmm]*CGS_U_muGauss;
+ double B_stri_y = beta_rand*b8_bstriy[b8_mmm]*CGS_U_muGauss;
+ double B_stri_z = beta_rand*b8_bstriz[b8_mmm]*CGS_U_muGauss;
 
-
- //Random field magnitude is added in quadrature
- double BRdisk_mag2 = pow(Branddisk_cart[0],2)+pow(Branddisk_cart[1],2)+pow(Branddisk_cart[2],2);
- double BRhalo_mag2 = pow(Brandhalo_cart[0],2)+pow(Brandhalo_cart[1],2)+pow(Brandhalo_cart[2],2);
- double BRandMag = sqrt(BRdisk_mag2+BRhalo_mag2) * brand_scale;
-
- double BRandX_final = BRandMag * b8_brandx[b8_mmm];
- double BRandY_final = BRandMag * b8_brandy[b8_mmm];
- double BRandZ_final = BRandMag * b8_brandz[b8_mmm];
-
- double BsrfX = 0.;
- double BsrfY = 0.;
- double BsrfZ = 0.;
-
- if (rho > rho_GC){
- //Compute prefactor for striated random field (dot products and vector magnitudes)
- double Breg_magsq = pow(B_vec3.x,2)+pow(B_vec3.y,2)+pow(B_vec3.z,2);
- double Bsrf_lmbda = beta_rand * (BRandX_final*B_vec3.x+BRandY_final*B_vec3.y+BRandZ_final*B_vec3.z) / Breg_magsq;
- BsrfX = Bsrf_lmbda * B_vec3.x;
- BsrfY = Bsrf_lmbda * B_vec3.y;
- BsrfZ = Bsrf_lmbda * B_vec3.z;
+ if (rho < rho_GC){
+    B_vec3.x=0.;
+    B_vec3.y=0.;
+    B_vec3.z=0.;
+    B_stri_x=0.;
+    B_stri_y=0.;
+    B_stri_z=0.;
  }
  
- B_vec3.x = B_vec3.x + BsrfX;
- B_vec3.y = B_vec3.y + BsrfY;
- B_vec3.z = B_vec3.z + BsrfZ;
+ B_vec3.x = B_vec3.x + B_stri_x;
+ B_vec3.y = B_vec3.y + B_stri_y;
+ B_vec3.z = B_vec3.z + B_stri_z;
 
  b8_mmm = b8_mmm + 1;
 
@@ -1599,6 +1626,7 @@ vec3 B_field::field9(vec3 coords) {
   double rho   = sqrt(coords.x*coords.x + coords.y*coords.y + coords.z*coords.z);
   double PHI   = atan2(coords.y,coords.x);
   double z     = coords.z;
+  int arm_id   = -1; //labels arms with index, 0,...,7 
 
   // define boundaries outside of which B is zero
   if (r > Rmax)     { return vec3(0,0,0);}
@@ -1612,7 +1640,6 @@ vec3 B_field::field9(vec3 coords) {
   double zprofile = 1./(1+exp(-2./w_disk*(abs(z)/CGS_U_kpc-h_disk)) );
 
   double B_cyl_disk[3]={0,0,0}; // the disk field in cylindrical coordinates
-  double B_cyl_Randdisk[3]={0,0,0}; //Random field disk component
   
   if ( (r > rcent) )  // disk field zero elsewhere
   {
@@ -1635,54 +1662,18 @@ vec3 B_field::field9(vec3 coords) {
        double r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI-CGS_U_pi));
        if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+CGS_U_pi)); }
        if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+3*CGS_U_pi)); }
-       // Modified to also select the appropriate random field disk coefficient, Sean Quinn 2/12/2014, original line commented out below.
-       // for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i];} }    // "region 8,7,6,..,2"
-       for (int i=7; i>=0; i--){
-            if (r_negx < rc_B[i]*CGS_U_kpc){
-                b_disk = bv_B[i];
-            }
-        }
-
+       for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i]; arm_id = i;} }    // "region 8,7,6,..,2"
+       
        // the disk field in cylindrical coordinates
        B_cyl_disk[0] =  b_disk*B0*sin(CGS_U_pi/180.*inc)*(1-zprofile);
        B_cyl_disk[1] =  b_disk*B0*cos(CGS_U_pi/180.*inc)*(1-zprofile);
      }
    }
-   
- // ---------------------------------------------------------------------------------------------------
- // -------KRF Disk component
-	if ( (r < rmin) )
-		B_cyl_Randdisk[1] = bRandDiskInt * exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.) * CGS_U_muGauss;
-	else{
-		double bv_RandB [8] = {bRandDisk1, bRandDisk2, bRandDisk3, bRandDisk4, bRandDisk5, bRandDisk6, bRandDisk7, 0.}; //Random constant array
-		double b7rand = 0.;
-		for (int i=0; i<7; i++){
-			b7rand -= f[i]*bv_RandB[i]/f[7];
-		} // last spiral strength is set by the others, to conserve flux
-		bv_RandB[7] = b7rand;
-		// iteratively figure out which spiral arm the current coordinates (r, phi) corresponds to.
-		double b_diskRand = 0; //Random disk constant
-		double r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI-CGS_U_pi));
-		if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+CGS_U_pi)); }
-		if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+3*CGS_U_pi)); }
-		// Modified to also select the appropriate random field disk coefficient, Sean Quinn 2/12/2014, original line commented out below.
-		// for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i];} }    // "region 8,7,6,..,2"
-		for (int i=7; i>=0; i--){
-			if (r_negx < rc_B[i]*CGS_U_kpc){
-				b_diskRand = bv_RandB[i];
-			}
-		}
-		//Random disk field
-		B_cyl_Randdisk[0] = b_diskRand * B0 * sin(CGS_U_pi/180.*inc)* exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.);
-		B_cyl_Randdisk[1] = b_diskRand * B0 * cos(CGS_U_pi/180.*inc) * exp(-pow(z/(z0RandDisk*CGS_U_kpc),2)/2.);
-	 }
- // ---------------------------------------------------------------------------------------------------
 
  // ---------------------------------------------------------------------------------------------------
  // --- Toroidal halo component
   double b1, rh;
   double B_h = 0;
-  double B_hrand = 0;
   if ( z >= 0) {     // NORTH
     b1  = Bn*CGS_U_muGauss;
     rh  = rn;               // transition radius between inner-outer region, (units added later)
@@ -1692,9 +1683,7 @@ vec3 B_field::field9(vec3 coords) {
 	rh  = rs;
   }
   B_h = b1*(1. - 1./(1.+exp(-2./wh*(r/CGS_U_kpc-rh))))*exp(-(abs(z))/(z0*CGS_U_kpc)); // vertical exponentialfall-off
-  B_hrand = (B0RandHalo*CGS_U_muGauss) * exp(-r/(r0RandHalo*CGS_U_kpc)) * exp(-pow(z/(z0RandHalo*CGS_U_kpc),2)/2.); //spq 2/13/14
   double B_cyl_h[3]={ 0., B_h*zprofile, 0. };
-  double B_cyl_hrand[3]={0., B_hrand, 0.}; //spq 2/13/14
 
  // ---------------------------------------------------------------------------------------------------
  // --- X-field component
@@ -1736,47 +1725,56 @@ vec3 B_field::field9(vec3 coords) {
  B_cyl[2] = B_cyl_disk[2] +  B_cyl_h[2] + B_cyl_X[2];
 
  double B_cart[3];
- double Branddisk_cart[3];
- double Brandhalo_cart[3];
  vec3 B_vec3(0.,0.,0.);
+ vec3 Brand_vec3(0.,0.,0.);
  Cyl2Cart(PHI,B_cyl,B_cart);
- Cyl2Cart(PHI,B_cyl_Randdisk,Branddisk_cart);
- Cyl2Cart(PHI,B_cyl_hrand,Brandhalo_cart);
  B_vec3.x=B_cart[0];
  B_vec3.y=B_cart[1];
  B_vec3.z=B_cart[2];
 
- if (rho < rho_GC) { 
- 	B_vec3.x=0.;
-	B_vec3.y=0.;
-	B_vec3.z=0.;
+
+ double gal_cent = 1.;//Prefactor to set striated field to zero if r<1 kpc
+ if (rho < rho_GC){
+    B_vec3.x=0.;
+    B_vec3.y=0.;
+    B_vec3.z=0.;
+    gal_cent = 0.;
  }
 
- //Random field magnitude is added in quadrature
- double BRdisk_mag2 = pow(Branddisk_cart[0],2)+pow(Branddisk_cart[1],2)+pow(Branddisk_cart[2],2);
- double BRhalo_mag2 = pow(Brandhalo_cart[0],2)+pow(Brandhalo_cart[1],2)+pow(Brandhalo_cart[2],2);
- double BRandMag = sqrt(BRdisk_mag2+BRhalo_mag2) * brand_scale;
+// ---------------------------------------------------------------------------------------------------
+ // -------JF12b Disk "random" field
+  //vec3 lineofsight(coords.x-SunPosition.x, coords.y, coords.z);
+  //lineofsight.Normalize();
+  //vec3 B_hat = B_vec3; B_hat.Normalize();
+  //vec3 los_cross_B = crossprod(lineofsight, B_hat);
+  //double sin_angle_squared = los_cross_B.Length()*los_cross_B.Length(); // square of the sine of the angle between the line-of-sight and B_reg
 
- double BRandX_final = BRandMag * b9_brandx[b9_mmm];
- double BRandY_final = BRandMag * b9_brandy[b9_mmm];
- double BRandZ_final = BRandMag * b9_brandz[b9_mmm];
+  bRandDiskInt *= CGS_U_muGauss;
+  z0RandDisk *= CGS_U_kpc;
+  B0RandHalo *= CGS_U_muGauss;
+  r0RandHalo *= CGS_U_kpc;
+  z0RandHalo *= CGS_U_kpc;
+  double b_arms[8] = {bRandDisk1,bRandDisk2,bRandDisk3,bRandDisk4,bRandDisk5,bRandDisk6,bRandDisk7,bRandDisk8};
+  double b_rand_disk = 0;
+  if (arm_id>=0) {b_rand_disk = b_arms[arm_id] * CGS_U_muGauss*(5.*CGS_U_kpc/r);} // arms fall of ~1/r 
+  if (r<5.*CGS_U_kpc) {b_rand_disk = bRandDiskInt;}
+  b_rand_disk = b_rand_disk*exp(-0.5*pow(z/z0RandDisk,2.) );
+  
+  //JF12b Halo "random" field
+  double b_rand_halo = B0RandHalo*exp(-abs(r/r0RandHalo))*exp(-0.5*pow(z/z0RandHalo,2.));
+	
+  double rand_factor = sqrt(pow(b_rand_disk,2)+pow(b_rand_halo,2));
 
- double BsrfX = 0.;
- double BsrfY = 0.;
- double BsrfZ = 0.;
+ // ---------------------------------------------------------------------------------------------------
+    
+ //Final random field for this model includes JF12b*KRF + SKRF
+ double BRandX_final = brand_scale*rand_factor*b9_brandx[b9_mmm]+gal_cent*CGS_U_muGauss*beta_rand*b9_bstrix[b9_mmm];
+ double BRandY_final = brand_scale*rand_factor*b9_brandy[b9_mmm]+gal_cent*CGS_U_muGauss*beta_rand*b9_bstriy[b9_mmm];
+ double BRandZ_final = brand_scale*rand_factor*b9_brandz[b9_mmm]+gal_cent*CGS_U_muGauss*beta_rand*b9_bstriz[b9_mmm];
 
- if (rho > rho_GC){
- //Compute prefactor for striated random field (dot products and vector magnitudes)
- double Breg_magsq = pow(B_vec3.x,2)+pow(B_vec3.y,2)+pow(B_vec3.z,2);
- double Bsrf_lmbda = beta_rand * (BRandX_final*B_vec3.x+BRandY_final*B_vec3.y+BRandZ_final*B_vec3.z) / Breg_magsq;
- BsrfX = Bsrf_lmbda * B_vec3.x;
- BsrfY = Bsrf_lmbda * B_vec3.y;
- BsrfZ = Bsrf_lmbda * B_vec3.z;
- }
- 
- B_vec3.x = B_vec3.x + BsrfX + BRandX_final;
- B_vec3.y = B_vec3.y + BsrfY + BRandY_final;
- B_vec3.z = B_vec3.z + BsrfZ + BRandZ_final;
+ B_vec3.x = B_vec3.x+BRandX_final;
+ B_vec3.y = B_vec3.y+BRandY_final;
+ B_vec3.z = B_vec3.z+BRandZ_final;
 
  b9_mmm = b9_mmm + 1;
 
@@ -1784,18 +1782,218 @@ vec3 B_field::field9(vec3 coords) {
 
 } //field9
 
-
-//Field 10: Pure GJQ (no scaling) Added by Sean Quinn Aug 15 2014
+//Field 10: Pure GJQ with optional scaling Added by Sean Quinn Aug 15 2014
 unsigned int b10_mmm = 0; //Random field vector index
 //---------------------------------------------------------------
 vec3 B_field::field10(vec3 coords) {
   vec3 B_vec3(0.,0.,0.);
-  B_vec3.x = b10_brandx[b10_mmm]*CGS_U_muGauss;
-  B_vec3.y = b10_brandy[b10_mmm]*CGS_U_muGauss;
-  B_vec3.z = b10_brandz[b10_mmm]*CGS_U_muGauss;
+  double r     = sqrt(coords.x*coords.x + coords.y*coords.y);
+  double Rmax   = 20*CGS_U_kpc;  // outer boundary of GMF
+  if (r > Rmax)     { return vec3(0,0,0);}
+  double brx = b10_brms*CGS_U_muGauss*b10_brandx[b10_mmm];
+  double bry = b10_brms*CGS_U_muGauss*b10_brandy[b10_mmm];
+  double brz = b10_brms*CGS_U_muGauss*b10_brandz[b10_mmm];
+  B_vec3.x = brx;
+  B_vec3.y = bry;
+  B_vec3.z = brz;
   b10_mmm = b10_mmm + 1;
   return B_vec3;
 } //field10
+
+//Field 11
+//---------------------------------------------------------------
+// --- Cleaned-up version of the Jansson-Farrar (2012) model, aka field f42.
+//---------------------------------------------------------------
+// Setup global vectors (separate from KRF) to store regular field values
+vector<double> bregfx;
+vector<double> bregfy;
+vector<double> bregfz;
+vector<double> bregxc;
+vector<double> bregyc;
+vector<double> bregzc;
+vec3 B_field::field11(vec3 coords) {
+
+  // define the input parameters
+
+  // disk parameters
+  double b_arm_1 = b11_b1;   // micro Gauss field strength in spiral arm region 1
+  double b_arm_2 = b11_b2;
+  double b_arm_3 = b11_b3;
+  double b_arm_4 = b11_b4;
+  double b_arm_5 = b11_b5;
+  double b_arm_6 = b11_b6;
+  double b_arm_7 = b11_b7;
+  double b_ring  = b11_b8;   // field strength in molecular ring
+  double h_disk  = b11_b9;   // height of transition between disk and toroidal halo      
+  double w_disk  = b11_b10;  // transition width between disk and toroidal halo 
+
+
+  // toroidal halo parameters
+  double Bn = b11_b11;   // field strength in the north
+  double Bs = b11_b12;   //            ... in the south
+  double rn = b11_b13;   // transition radius in the north
+  double rs = b11_b14;   //            ... in the south
+  double wh = b11_b15;   // transition width 
+  double z0 = b11_b16;   // scale height in z 
+
+  // X-field parameters
+  double B0_X    = b11_b17;
+  double Xtheta  = b11_b18;
+  double rpc_X   = b11_b19; // called r_X^c in paper
+  double r0_X    = b11_b20; // called r_X in paper 
+
+  // -------------------------------------------------------------------------------------------------
+  // define fixed parameters
+
+  double Rmax   = 20*CGS_U_kpc;  // outer boundary of GMF
+  double rho_GC = 1.*CGS_U_kpc;  // interior boundary of GMF 
+
+
+  // fixed disk parameters
+  double inc     = 11.5;            // inclination, in degrees
+  double rmin    = 5.*CGS_U_kpc;    // outer boundary of the molecular ring region   
+  double rcent   = 3.*CGS_U_kpc;    // inner boundary of the molecular ring region (field is zero within this radius)
+  double f[8]    = {0.130, 0.165, 0.094, 0.122, 0.13, 0.118, 0.084, 0.156}; // fractions of cicumference spanned by each spiral, sums to unity
+  double rc_B[8] = {5.1, 6.3, 7.1, 8.3, 9.8, 11.4, 12.7, 15.5};             // the radii where the spiral arm boundaries cross the negative x-axis
+  // --------------------------------------------------------------------------------------------------
+  // x,y,z is a Galactocentric cartesian system, with the Sun on the negative x-axis
+  double r     = sqrt(coords.x*coords.x + coords.y*coords.y);
+  double rho   = sqrt(coords.x*coords.x + coords.y*coords.y + coords.z*coords.z);
+  double PHI   = atan2(coords.y,coords.x);
+  double z     = coords.z;
+
+  // define boundaries outside of which B is zero
+  if (r > Rmax)     { return vec3(0,0,0);} 
+   
+
+  // ---------------------------------------------------------------------------------------------------
+  // Disk component:  a divergenceless form of Brown et al. (2007). (8 spiral regions, 7 free parameters, the 8th set to conserve flux)
+
+  // set B0 to 1 muG at r=5 kpc (so that the b_i parameters refer to B strength at 5 kpc, after which they go as ~1/r):
+  double B0       = rmin/r*CGS_U_muGauss;   
+  // the logistic equation, to be multiplied to the toroidal halo field, and (1-zprofile) multiplied to the disk:
+  double zprofile = 1./(1+exp(-2./w_disk*(abs(z)/CGS_U_kpc-h_disk)) );  
+
+  double B_cyl_disk[3]={0,0,0}; // the disk field in cylindrical coordinates
+  if ( (r > rcent) )  // disk field zero elsewhere
+  {
+    if (r < rmin) {   // circular field in molecular ring
+       B_cyl_disk[1] = B0*b_ring*(1-zprofile); 
+    }
+    else 
+    {
+       // use flux conservation to calculate the field strength in the 8th spiral arm
+       double bv_B [8] = {b_arm_1, b_arm_2, b_arm_3, b_arm_4, b_arm_5, b_arm_6, b_arm_7, 0.};
+       double b7 = 0.; 
+       for (int i=0; i<7; i++){ b7 -= f[i]*bv_B[i]/f[7]; } // last spiral strength is set by the others, to conserve flux
+       bv_B[7] = b7;
+
+       // iteratively figure out which spiral arm the current coordinates (r, phi) corresponds to.
+       double b_disk   = 0;
+       double r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI-CGS_U_pi)); 
+       if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+CGS_U_pi)); }
+       if (r_negx > rc_B[7]*CGS_U_kpc) {r_negx = r*exp(-1/tan(CGS_U_pi/180.*(90-inc))*(PHI+3*CGS_U_pi)); }
+       for (int i=7; i>=0; i--){ if (r_negx < rc_B[i]*CGS_U_kpc) { b_disk = bv_B[i];} }    // "region 8,7,6,..,2"
+
+       // the disk field in cylindrical coordinates
+       B_cyl_disk[0] =  b_disk*B0*sin(CGS_U_pi/180.*inc)*(1-zprofile);
+       B_cyl_disk[1] =  b_disk*B0*cos(CGS_U_pi/180.*inc)*(1-zprofile);
+     }
+   }
+
+ // ---------------------------------------------------------------------------------------------------
+ // --- Toroidal halo component
+  double b1, rh;
+  double B_h = 0;
+  if ( z >= 0) {     // NORTH
+    b1  = Bn*CGS_U_muGauss;
+    rh  = rn;               // transition radius between inner-outer region, (units added later) 
+  }                    
+  else if ( z < 0 ){  // SOUTH
+    b1  = Bs*CGS_U_muGauss;  
+	rh  = rs;       
+  }
+  B_h = b1*(1. - 1./(1.+exp(-2./wh*(r/CGS_U_kpc-rh))))*exp(-(abs(z))/(z0*CGS_U_kpc)); // vertical exponentialfall-off
+  double B_cyl_h[3]={ 0., B_h*zprofile, 0. };
+
+ // ---------------------------------------------------------------------------------------------------
+ // --- X-field component
+
+ // apply units to input parameters
+ B0_X   *= CGS_U_muGauss;
+ r0_X   *= CGS_U_kpc; 
+ rpc_X  *= CGS_U_kpc; 
+ Xtheta *= CGS_U_pi/180.;
+
+ double    rp_X   =  0.;  // the mid-plane radius for the field line that pass through r 
+ double    B_X    =  0.;
+ double    r_sign =  1.;
+ if (z<0){ r_sign = -1.;}
+
+ // dividing line between region with constant elevation angle, and the interior:
+ double rc_X = rpc_X + abs(z)/tan(Xtheta); 
+ 
+ if (r<rc_X){ // interior region, with varying elevation angle
+   rp_X   = r*rpc_X/rc_X;
+   B_X    = B0_X * pow(rpc_X/rc_X ,2.) * exp(-rp_X/r0_X);
+   Xtheta = atan( abs(z)/ (r-rp_X) );   // modified elevation angle in interior region
+   if (z==0.){Xtheta=CGS_U_pi/2.;}      // to avoid some NaN
+ }
+ else {       // exterior region with constant elevation angle
+   rp_X = r - abs(z)/tan(Xtheta);
+   B_X  = B0_X * rp_X/r * exp(-rp_X/r0_X);
+ }
+
+ // X-field in cylindrical coordinates
+ double B_cyl_X[3]={ B_X*cos(Xtheta)*r_sign, 0.  ,  B_X*sin(Xtheta) };
+
+
+ // ---------------------------------------------------------------------------------------------------
+ // --- add disk + halo components together -------
+
+ double B_cyl[3] = {0,0,0};
+ B_cyl[0] = B_cyl_disk[0] +  B_cyl_h[0] + B_cyl_X[0]; 
+ B_cyl[1] = B_cyl_disk[1] +  B_cyl_h[1] + B_cyl_X[1];
+ B_cyl[2] = B_cyl_disk[2] +  B_cyl_h[2] + B_cyl_X[2];
+
+ double B_cart[3];
+ vec3 B_vec3(0.,0.,0.);
+ Cyl2Cart(PHI,B_cyl,B_cart);
+ B_vec3.x=B_cart[0];
+ B_vec3.y=B_cart[1];
+ B_vec3.z=B_cart[2];
+
+ if (rho < rho_GC) { 
+     B_vec3.x=0.;
+     B_vec3.y=0.;
+     B_vec3.z=0.;
+ }
+
+ bregfx.push_back(B_vec3.x/CGS_U_muGauss);
+ bregfy.push_back(B_vec3.y/CGS_U_muGauss);
+ bregfz.push_back(B_vec3.z/CGS_U_muGauss);
+ bregxc.push_back(coords.x/CGS_U_kpc);
+ bregyc.push_back(coords.y/CGS_U_kpc);
+ bregzc.push_back(coords.z/CGS_U_kpc);
+
+ return B_vec3;
+
+} //field11
+
+//Field 12, Constant field with optional KRF
+
+unsigned int b12_mmm = 0; //Random field vector index
+vec3 B_field::field12(vec3 coords){
+  vec3 B_vec3(0.,0.,0.);
+  double r     = sqrt(coords.x*coords.x + coords.y*coords.y);
+  double Rmax   = 20*CGS_U_kpc;  // outer boundary of GMF
+  if (r > Rmax)     { return vec3(0,0,0);}
+  B_vec3.x = (b12_bxc+b12_brms*b12_brandx[b12_mmm])*CGS_U_muGauss;
+  B_vec3.y = (b12_byc+b12_brms*b12_brandy[b12_mmm])*CGS_U_muGauss;
+  B_vec3.z = (b12_bzc+b12_brms*b12_brandz[b12_mmm])*CGS_U_muGauss;
+  b12_mmm = b12_mmm + 1;
+  return B_vec3;
+} //field12
 
 
 void B_field::fillRandom(bool do_alloc, std::string infile){
@@ -1845,9 +2043,12 @@ void B_field::fillRandom( bool do_alloc ){
 	      std::cout<<i<<", j="<<j<<", l="<<l<<"\n"; 
 	      std::exit(-1);
 	    }
-	    ran_inp.read( reinterpret_cast<char*>(&b_of_k_x[index]), sizeof( double ) );
-	    ran_inp.read( reinterpret_cast<char*>(&b_of_k_y[index]), sizeof( double ) );
-	    ran_inp.read( reinterpret_cast<char*>(&b_of_k_z[index]), sizeof( double ) );
+	    //ran_inp.read( reinterpret_cast<char*>(&b_of_k_x[index]), sizeof( double ) );
+	    //ran_inp.read( reinterpret_cast<char*>(&b_of_k_y[index]), sizeof( double ) );
+	    //ran_inp.read( reinterpret_cast<char*>(&b_of_k_z[index]), sizeof( double ) );
+        ran_inp >> b_of_k_x[index]; //M SPQ
+        ran_inp >> b_of_k_y[index]; //M SPQ
+        ran_inp >> b_of_k_z[index]; //M SPQ
 	    
 	    // Fixing the units:
 	    b_of_k_x[index]*=CGS_U_muGauss;
@@ -2375,7 +2576,9 @@ vec3 B_field::return_Breg_cart( vec3 coords)
   case 7:  regular = field7(coords); break; //Added by SPQ Aug 12 2014
   case 8:  regular = field8(coords); break; //Added by SPQ Aug 15 2014
   case 9:  regular = field9(coords); break; //Added by SPQ Aug 15 2014
-  case 10:  regular = field10(coords); break; //Added by SPQ Aug 15 2014
+  case 10: regular = field10(coords); break; //Added by SPQ Aug 15 2014
+  case 11: regular = field11(coords); break; //Added by SPQ Oct 20 2014
+  case 12: regular = field12(coords); break; //Added Oct 28 2014 SPQ
     // Your field here:
     //  case 10: regular=field10(coords); break;
   default: cerr << " No bfield_type specified " << endl; exit(1); break;
